@@ -1,0 +1,73 @@
+name: Tauri Multiplatform Build and Release
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build on ${ matrix.platform }
+    runs-on: ${ matrix.platform }
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: ['windows-latest', 'ubuntu-latest', 'macos-latest']
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          
+      - name: Install Rust Base
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${ matrix.platform == 'macos-latest' && 'aarch64-apple-ios' || (matrix.platform == 'ubuntu-latest' && 'aarch64-linux-android' || '') }
+
+      - name: Setup Java (für Android)
+        if: matrix.platform == 'ubuntu-latest'
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Setup Android SDK
+        if: matrix.platform == 'ubuntu-latest'
+        uses: android-actions/setup-android@v4
+        with:
+          packages: 'cmdline-tools;latest platform-tools'
+
+      - name: Install Android NDK
+        if: matrix.platform == 'ubuntu-latest'
+        run: |
+          sdkmanager "ndk;26.1.10909125"
+          echo "NDK_HOME=$ANDROID_HOME/ndk/26.1.10909125" >> "$GITHUB_ENV"
+
+      - name: Install Linux Dependencies
+        if: matrix.platform == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev bluez libjavascriptcoregtk-4.1-dev
+          
+      - name: Install JS Dependencies
+        run: npm install
+        
+      - name: Build App via Tauri Action
+        uses: tauri-apps/tauri-action@v1
+        env:
+          GITHUB_TOKEN: ${ secrets.GITHUB_TOKEN }
+          TAURI_SIGNING_PRIVATE_KEY: ${ secrets.TAURI_SIGNING_PRIVATE_KEY }
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }
+        with:
+          projectPath: "./"
+          tagName: ${ github.ref_name }
+          releaseName: 'Release ${ github.ref_name }'
+          releaseBody: 'Automatisch generierter plattformübergreifend unblockierter Tauri-Release.'
+          releaseDraft: false
+          prerelease: false
+          args: ${{ matrix.platform == 'ubuntu-latest' && '--target aarch64-linux-android' || matrix.platform == 'macos-latest' && '--target aarch64-apple-ios' || '' }}

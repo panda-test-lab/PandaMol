@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PandaMol — Weniger zeichnen. Mehr lernen.</title>
+    <meta name="description" content="PandaMol — Weniger zeichnen. Mehr lernen. Validierter Strukturformel-Generator für Pharmaziestudierende: Skelettformel, Fischer-Projektion, Haworth-Projektion und Sesselkonformation." />
+    <meta property="og:title" content="PandaMol — Weniger zeichnen. Mehr lernen." />
+    <meta property="og:description" content="Datenbank-validierte chemische Strukturformeln für Lernkarten in hoher Auflösung." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <script>
+      (function () {
+        try {
+          var stored =
+            localStorage.getItem('pandamol_theme_v1') ||
+            localStorage.getItem('molkarte_theme_v1');
+          var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+          var isDark = stored === 'dark' || (!stored && prefersDark);
+          document.documentElement.classList.toggle('dark', isDark);
+          document.documentElement.style.colorScheme = isDark ? 'dark' : 'light';
+        } catch (e) {}
+      })();
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400..700;1,9..40,400..700&family=IBM+Plex+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@500;600;700&display=swap" rel="stylesheet" />
+  </head>
+  <body class="bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 antialiased selection:bg-blue-100 selection:text-blue-900 dark:selection:bg-blue-900/60 dark:selection:text-blue-100">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

@@ -1,0 +1,8 @@
+{
+  "name": "PandaMol",
+  "description": "Validierter Strukturformel-Generator für Pharmazie-Lernkarten mit Fischer-, Haworth-, Sessel- und Skelettprojektionen.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

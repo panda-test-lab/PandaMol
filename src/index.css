@@ -1,0 +1,41 @@
+@import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-display: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+@layer base {
+  html {
+    font-family: var(--font-sans);
+  }
+
+  html.dark {
+    letter-spacing: 0.005em;
+  }
+
+  h1, h2, h3, h4, .font-display {
+    font-family: var(--font-display);
+  }
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Crisp chemical drawing grid backdrop for specimen canvas */
+.specimen-grid {
+  background-color: #ffffff;
+  background-image:
+    radial-gradient(#e2e8f0 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+.dark .specimen-grid {
+  background-color: #0b1120;
+  background-image:
+    radial-gradient(#1e293b 1px, transparent 1px);
+  background-size: 20px 20px;
+}

@@ -1,0 +1,49 @@
+{
+  "version": "2.0.0",
+  "identifier": "com.dominikmüller.esm",
+  "productName": "PandaMol",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build",
+    "devUrl": "http://localhost:3000",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "PandaMol",
+        "width": 1200,
+        "height": 800,
+        "resizable": true,
+        "dragDropEnabled": false,
+        "maximized": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "createUpdaterArtifacts": true,
+    "targets": "all",
+    "category": "Utility",
+    "copyright": "Copyright © Dominik Müller",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "publisher": "Dominik Müller"
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDdBOUNFOUUyNDNCMUIwOEEKUldTS3NMRkQ0dW1jZW9YcTMxS0xmSHd2TTRJSmt1a3Rhb0RqcjZFdkZ2Y0t3RkxUNnJuaWJQV1QK",
+      "endpoints": [
+        "https://github.com/panda-test-lab/PandaMol/releases/latest/download/latest.json"
+      ]
+    }
+  }
+}
