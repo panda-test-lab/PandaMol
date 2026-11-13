@@ -1,6 +1,6 @@
 [package]
 name = "pandamol"
-version = "0.0.0"
+version = "1.0.0"
 description = "PandaMol — Weniger zeichnen. Mehr lernen."
 authors = ["PandaMol"]
 edition = "2021"
