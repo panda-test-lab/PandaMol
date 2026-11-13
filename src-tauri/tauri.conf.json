@@ -1,6 +1,6 @@
 {
-  "version": "1.0.0",
-  "identifier": "com.dominikmüller.esm",
+  "version": "1.0.1",
+  "identifier": "com.pandastudio.pandamol",
   "productName": "PandaMol",
   "build": {
     "beforeDevCommand": "npm run dev",
