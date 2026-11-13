@@ -1,4 +1,4 @@
-name: PandaMatch Desktop and Mobile Release
+name: PandaMol Desktop and Mobile Release
 on:
   push:
     tags:
@@ -21,8 +21,8 @@ jobs:
           else
             gh release create "$GITHUB_REF_NAME" \
               --repo "$GITHUB_REPOSITORY" \
-              --title "PandaMatch $GITHUB_REF_NAME" \
-              --notes "Desktop- und Mobil-Builds für PandaMatch $GITHUB_REF_NAME." \
+              --title "PandaMol $GITHUB_REF_NAME" \
+              --notes "Desktop- und Mobil-Builds für PandaMol $GITHUB_REF_NAME." \
               --draft \
               --verify-tag
           fi
@@ -88,8 +88,8 @@ jobs:
         with:
           tauriScript: npm run tauri
           tagName: ${{ github.ref_name }}
-          releaseName: PandaMatch ${{ github.ref_name }}
-          releaseBody: Desktop- und Mobil-Builds für PandaMatch ${{ github.ref_name }}.
+          releaseName: PandaMol ${{ github.ref_name }}
+          releaseBody: Desktop- und Mobil-Builds für PandaMol ${{ github.ref_name }}.
           releaseDraft: true
           prerelease: false
           includeUpdaterJson: true
@@ -190,8 +190,8 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           test -d src-tauri/gen/apple/build
-          ditto -c -k --keepParent src-tauri/gen/apple/build PandaMatch-iOS-Simulator.zip
-          gh release upload "$GITHUB_REF_NAME" PandaMatch-iOS-Simulator.zip --repo "$GITHUB_REPOSITORY" --clobber
+          ditto -c -k --keepParent src-tauri/gen/apple/build PandaMol-iOS-Simulator.zip
+          gh release upload "$GITHUB_REF_NAME" PandaMol-iOS-Simulator.zip --repo "$GITHUB_REPOSITORY" --clobber
 
   publish-release:
     name: Publish complete release
