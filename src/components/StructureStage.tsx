@@ -16,7 +16,11 @@ import type {
   ProjectionNotice,
 } from '../types/chemistry.ts';
 import { exportStructureFile } from '../utils/exportStructure.ts';
-import { openExternalUrlInTauri } from '../utils/tauriBridge.ts';
+import {
+  isTauriRuntime,
+  logAppErrorInTauri,
+  openExternalUrlInTauri,
+} from '../utils/tauriBridge.ts';
 import { themeSvgForDisplay } from '../utils/themeSvg.ts';
 
 interface StructureStageProps {
@@ -93,14 +97,24 @@ export const StructureStage: React.FC<StructureStageProps> = ({
     }
   };
 
-  const handleOpenPubChem = async (
+  const handleOpenPubChem = (
     e: React.MouseEvent<HTMLAnchorElement>,
     url: string
   ) => {
-    const handled = await openExternalUrlInTauri(url);
-    if (handled) {
-      e.preventDefault();
-    }
+    if (!isTauriRuntime()) return;
+
+    e.preventDefault();
+    void openExternalUrlInTauri(url).catch((error: unknown) => {
+      const message = `Externer Link konnte nicht geöffnet werden: ${
+        error instanceof Error ? error.message : String(error)
+      }`;
+      setExportStatus(message);
+      void logAppErrorInTauri('external_link_failed', message).catch(
+        (logError: unknown) => {
+          console.error('PandaMol konnte den Fehler nicht protokollieren:', logError);
+        }
+      );
+    });
   };
 
   if (isLoading) {

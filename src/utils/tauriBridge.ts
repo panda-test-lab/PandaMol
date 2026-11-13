@@ -9,7 +9,11 @@ export interface TauriSaveResult {
 export type TauriErrorEvent =
   | 'upstream_unavailable'
   | 'structure_validation_failed'
-  | 'structure_generation_failed';
+  | 'structure_generation_failed'
+  | 'frontend_runtime_error'
+  | 'update_check_failed'
+  | 'update_install_failed'
+  | 'external_link_failed';
 
 export function isTauriRuntime(): boolean {
   if (typeof window === 'undefined') return false;
@@ -37,17 +41,16 @@ export async function saveExportFileInTauri(
   });
 }
 
-export async function logAppErrorInTauri(event: TauriErrorEvent): Promise<void> {
+export async function logAppErrorInTauri(
+  event: TauriErrorEvent,
+  message: string
+): Promise<void> {
   if (!isTauriRuntime()) return;
-  await invoke('log_app_error', { event });
+  await invoke('log_app_error', { event, message });
 }
 
 export async function openExternalUrlInTauri(url: string): Promise<boolean> {
   if (!isTauriRuntime()) return false;
-  try {
-    await invoke('open_external_url', { url });
-    return true;
-  } catch {
-    return false;
-  }
+  await invoke('open_external_url', { url });
+  return true;
 }

@@ -1,4 +1,6 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { check } from '@tauri-apps/plugin-updater';
+import { relaunch } from '@tauri-apps/plugin-process';
 import { generateStructures } from './chemistry/generateLocal.ts';
 import { Footer } from './components/Footer.tsx';
 import { GeneratorForm } from './components/GeneratorForm.tsx';
@@ -20,6 +22,13 @@ import {
   type TauriErrorEvent,
 } from './utils/tauriBridge.ts';
 
+interface AppErrorEntry {
+  id: number;
+  timestamp: string;
+  event: TauriErrorEvent;
+  message: string;
+}
+
 const HISTORY_STORAGE_KEY = 'pandamol_history_v1';
 const LEGACY_HISTORY_STORAGE_KEY = 'molkarte_history_v1';
 const THEME_STORAGE_KEY = 'pandamol_theme_v1';
@@ -27,10 +36,11 @@ const LEGACY_THEME_STORAGE_KEY = 'molkarte_theme_v1';
 
 export type ThemeMode = 'light' | 'dark';
 
-function logTauriError(event: TauriErrorEvent): void {
-  void logAppErrorInTauri(event).catch((error: unknown) => {
-    console.error('PandaMol konnte den Fehler nicht protokollieren:', error);
-  });
+function errorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.stack || error.message;
+  }
+  return String(error);
 }
 
 function loadInitialTheme(): ThemeMode {
@@ -84,9 +94,91 @@ export default function App() {
   const [interpretedNote, setInterpretedNote] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [errorLog, setErrorLog] = useState<AppErrorEntry[]>([]);
+  const [availableUpdate, setAvailableUpdate] =
+    useState<Awaited<ReturnType<typeof check>>>(null);
+  const [isInstallingUpdate, setIsInstallingUpdate] = useState<boolean>(false);
 
   const [history, setHistory] = useState<HistoryEntry[]>(() => loadHistory());
   const generationRequestId = useRef(0);
+
+  const reportError = useCallback((event: TauriErrorEvent, message: string) => {
+    const entry: AppErrorEntry = {
+      id: Date.now() + Math.random(),
+      timestamp: new Date().toLocaleString(),
+      event,
+      message,
+    };
+    setErrorLog((previous) => [...previous, entry].slice(-20));
+    console.error(`[PandaMol] ${event}: ${message}`);
+    void logAppErrorInTauri(event, message).catch((logError: unknown) => {
+      console.error('PandaMol konnte den Fehler nicht protokollieren:', logError);
+    });
+  }, []);
+
+  useEffect(() => {
+    const handleError = (event: ErrorEvent) => {
+      const location = event.filename
+        ? ` (${event.filename}:${event.lineno}:${event.colno})`
+        : '';
+      const detail =
+        event.error instanceof Error ? event.error.stack || event.error.message : '';
+      reportError(
+        'frontend_runtime_error',
+        `${event.message || 'Unbekannter Laufzeitfehler'}${location}${detail ? `\n${detail}` : ''}`
+      );
+    };
+    const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
+      reportError(
+        'frontend_runtime_error',
+        `Nicht abgefangene Promise-Ablehnung: ${errorMessage(event.reason)}`
+      );
+    };
+
+    window.addEventListener('error', handleError);
+    window.addEventListener('unhandledrejection', handleUnhandledRejection);
+    return () => {
+      window.removeEventListener('error', handleError);
+      window.removeEventListener('unhandledrejection', handleUnhandledRejection);
+    };
+  }, [reportError]);
+
+  useEffect(() => {
+    if (!isTauriRuntime()) return;
+    let active = true;
+
+    void check()
+      .then((update) => {
+        if (active && update) setAvailableUpdate(update);
+      })
+      .catch((updateError: unknown) => {
+        if (active) {
+          reportError(
+            'update_check_failed',
+            `Automatische Update-Prüfung fehlgeschlagen: ${errorMessage(updateError)}`
+          );
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [reportError]);
+
+  const handleInstallUpdate = async () => {
+    if (!availableUpdate) return;
+    setIsInstallingUpdate(true);
+    try {
+      await availableUpdate.downloadAndInstall();
+      await relaunch();
+    } catch (updateError) {
+      reportError(
+        'update_install_failed',
+        `Update ${availableUpdate.version} konnte nicht installiert werden: ${errorMessage(updateError)}`
+      );
+      setIsInstallingUpdate(false);
+    }
+  };
 
   useEffect(() => {
     const isDark = theme === 'dark';
@@ -184,8 +276,9 @@ export default function App() {
       if (requestId !== generationRequestId.current) return;
 
       if (!ok || data.error) {
-        logTauriError(
-          statusCode >= 500 ? 'upstream_unavailable' : 'structure_validation_failed'
+        reportError(
+          statusCode >= 500 ? 'upstream_unavailable' : 'structure_validation_failed',
+          data.error || 'Struktur konnte nicht validiert werden.'
         );
         const debugSuffix = data.debugId ? ` (Debug-ID: ${data.debugId})` : '';
         setError(`${data.error || 'Struktur konnte nicht validiert werden.'}${debugSuffix}`);
@@ -209,9 +302,12 @@ export default function App() {
         }));
         setHistory((prev) => [...newEntries, ...prev].slice(0, 60));
       }
-    } catch {
+    } catch (generationError) {
       if (requestId === generationRequestId.current) {
-        logTauriError('structure_generation_failed');
+        reportError(
+          'structure_generation_failed',
+          `Strukturgenerierung fehlgeschlagen: ${errorMessage(generationError)}`
+        );
         setError(
           'Struktur konnte nicht validiert werden. Bitte Verbindung prüfen und erneut versuchen.'
         );
@@ -313,6 +409,60 @@ export default function App() {
       />
 
       <main className="flex-1 max-w-[1440px] w-full mx-auto px-6 py-6">
+        {availableUpdate && (
+          <section
+            aria-live="polite"
+            className="mb-5 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-blue-200 bg-blue-50 p-4 text-blue-950 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-100"
+          >
+            <div>
+              <h2 className="font-semibold">Update verfügbar: v{availableUpdate.version}</h2>
+              {availableUpdate.body && (
+                <p className="mt-1 whitespace-pre-line text-sm">{availableUpdate.body}</p>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => void handleInstallUpdate()}
+              disabled={isInstallingUpdate}
+              className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800 disabled:cursor-wait disabled:opacity-70 dark:bg-blue-500 dark:hover:bg-blue-400"
+            >
+              {isInstallingUpdate ? 'Update wird installiert …' : 'Jetzt installieren'}
+            </button>
+          </section>
+        )}
+
+        {errorLog.length > 0 && (
+          <section
+            role="log"
+            aria-label="Fehlerprotokoll"
+            aria-live="polite"
+            className="mb-5 rounded-xl border border-rose-200 bg-rose-50 p-4 text-rose-950 dark:border-rose-900 dark:bg-rose-950/40 dark:text-rose-100"
+          >
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <h2 className="font-semibold">Fehlerprotokoll (letzte {errorLog.length})</h2>
+              <button
+                type="button"
+                onClick={() => setErrorLog([])}
+                className="text-sm underline underline-offset-2"
+              >
+                Anzeige leeren
+              </button>
+            </div>
+            <ul className="space-y-3">
+              {errorLog.map((entry) => (
+                <li key={entry.id} className="border-t border-rose-200 pt-2 dark:border-rose-900">
+                  <p className="text-xs font-medium">
+                    {entry.timestamp} · {entry.event}
+                  </p>
+                  <pre className="mt-1 whitespace-pre-wrap break-words font-mono text-xs">
+                    {entry.message}
+                  </pre>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
         {activeTab === 'generator' && (
           <div className="flex flex-col lg:flex-row items-start gap-6">
             <GeneratorForm

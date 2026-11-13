@@ -50,6 +50,7 @@ app.post('/api/structures/generate', async (req, res) => {
       statusCode: 500,
       durationMs: Date.now() - startedAt,
       errorName: err instanceof Error ? err.name : 'UnknownError',
+      errorMessage: err instanceof Error ? err.message : String(err),
     });
     res.status(500).json({
       query: '',

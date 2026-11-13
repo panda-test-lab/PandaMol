@@ -11,6 +11,7 @@ export interface ServerLogEntry {
   durationMs?: number;
   structureCount?: number;
   errorName?: string;
+  errorMessage?: string;
 }
 
 export async function logServerEvent(entry: ServerLogEntry): Promise<void> {

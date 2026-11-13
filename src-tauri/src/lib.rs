@@ -60,12 +60,25 @@ async fn save_export_file(
 }
 
 #[tauri::command]
-async fn log_app_error(app: tauri::AppHandle, event: String) -> Result<(), String> {
+async fn log_app_error(
+    app: tauri::AppHandle,
+    event: String,
+    message: String,
+) -> Result<(), String> {
     if !matches!(
         event.as_str(),
-        "upstream_unavailable" | "structure_validation_failed" | "structure_generation_failed"
+        "upstream_unavailable"
+            | "structure_validation_failed"
+            | "structure_generation_failed"
+            | "frontend_runtime_error"
+            | "update_check_failed"
+            | "update_install_failed"
+            | "external_link_failed"
     ) {
         return Err("Ungültiger Log-Ereignistyp.".to_string());
+    }
+    if message.len() > 16_384 {
+        return Err("Fehlermeldung ist zu lang.".to_string());
     }
 
     let log_dir = app
@@ -84,6 +97,7 @@ async fn log_app_error(app: tauri::AppHandle, event: String) -> Result<(), Strin
             "timestampUnixSeconds": timestamp,
             "level": "error",
             "event": event,
+            "message": message,
         });
         let mut file = std::fs::OpenOptions::new()
             .create(true)
@@ -112,6 +126,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_process::init())
         .invoke_handler(tauri::generate_handler![
             save_export_file,
             log_app_error,

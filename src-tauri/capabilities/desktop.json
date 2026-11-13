@@ -13,6 +13,7 @@
   "permissions": [
     "dialog:allow-open",
     "dialog:allow-save",
-    "updater:default"
+    "updater:default",
+    "process:allow-restart"
   ]
 }
