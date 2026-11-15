@@ -85,6 +85,7 @@ export default function App() {
     showCIP: false,
     colorHeteroatoms: false,
     showCarbonNumbers: false,
+    hideNonAtomAnnotations: false,
     zwitterionic: false,
   });
 

@@ -1,7 +1,7 @@
 {
   "name": "pandamol",
   "private": true,
-  "version": "1.0.5",
+  "version": "1.0.6",
   "type": "module",
   "scripts": {
     "dev": "tsx server.ts",
@@ -10,17 +10,20 @@
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
+    "test": "tsx --test tests/biologicalSources.test.ts tests/projectionEngine.test.ts",
     "tauri:dev": "npx @tauri-apps/cli@^2 dev",
     "tauri:build": "npx @tauri-apps/cli@^2 build",
     "tauri": "tauri"
   },
   "dependencies": {
     "@google/genai": "^3.3.0",
+    "@rdkit/rdkit": "^2026.9.2",
     "@tailwindcss/vite": "^4.3.3",
     "@tauri-apps/api": "^2.12.4",
     "@tauri-apps/plugin-process": "^2.3.1",
     "@tauri-apps/plugin-updater": "^2.14.1",
     "@vitejs/plugin-react": "^6.1.1",
+    "cargo": "^0.8.0",
     "dotenv": "^17.2.3",
     "express": "^4.21.2",
     "lucide-react": "^0.546.0",

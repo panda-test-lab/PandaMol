@@ -22,6 +22,7 @@ import {
   openExternalUrlInTauri,
 } from '../utils/tauriBridge.ts';
 import { themeSvgForDisplay } from '../utils/themeSvg.ts';
+import welcomeIllustration from '../assets/pandamol-welcome.jpg';
 
 interface StructureStageProps {
   structures: GeneratedStructureCard[];
@@ -97,7 +98,7 @@ export const StructureStage: React.FC<StructureStageProps> = ({
     }
   };
 
-  const handleOpenPubChem = (
+  const handleOpenSource = (
     e: React.MouseEvent<HTMLAnchorElement>,
     url: string
   ) => {
@@ -127,7 +128,7 @@ export const StructureStage: React.FC<StructureStageProps> = ({
           Chemische Datenbank & Stereochemie werden geprüft …
         </h2>
         <p className="mt-1.5 text-sm text-slate-600 dark:text-slate-400 max-w-md">
-          Abgleich mit PubChem PUG REST, NCI/CADD Resolver und deterministischer OpenChemLib-Validierung.
+          ChEBI zuerst, PubChem als Fallback; dazu NCI/CADD-Gegenprüfung und lokale OpenChemLib-Validierung. Glykane werden über GlyTouCan dargestellt.
         </p>
       </section>
     );
@@ -187,19 +188,22 @@ export const StructureStage: React.FC<StructureStageProps> = ({
 
   if (!currentCard) {
     return (
-      <section className="flex-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-8 flex flex-col items-center justify-center min-h-[540px] text-center transition-colors">
-        <div className="w-12 h-12 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-700 dark:text-slate-300 mb-4">
-          <FlaskConical className="w-6 h-6" />
+      <section className="flex-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 sm:p-8 flex items-center justify-center min-h-[360px] sm:min-h-[420px] transition-colors">
+        <div className="flex w-full max-w-3xl flex-col-reverse items-center justify-center gap-5 sm:flex-row sm:justify-between sm:gap-8">
+          <div className="max-w-xl text-center sm:text-left">
+            <h2 className="font-display text-xl font-semibold text-slate-900 dark:text-slate-100 text-balance">
+              Bereit für deine erste Lernkarten-Struktur
+            </h2>
+            <p className="mt-2 text-sm leading-relaxed text-slate-600 dark:text-slate-400">
+              Gib links eine Bezeichnung (z. B. <strong className="text-slate-900 dark:text-slate-200">Glucose</strong>, <strong className="text-slate-900 dark:text-slate-200">L-Alanin</strong> oder <strong className="text-slate-900 dark:text-slate-200">Acetylsalicylsäure</strong>) ein und wähle die gewünschten Projektionen. Jede passende Struktur wird einzeln verifiziert und vor dem Export zur Bestätigung angezeigt.
+            </p>
+          </div>
+          <img
+            src={welcomeIllustration}
+            alt="Der PandaMol-Chemiepanda begrüßt dich mit einer Strukturformel."
+            className="h-40 w-auto max-w-[42vw] shrink-0 object-contain sm:h-52 lg:h-64"
+          />
         </div>
-        <p className="text-xs font-medium text-blue-700 dark:text-blue-400 mb-1.5">
-          PandaMol · Weniger zeichnen. Mehr lernen.
-        </p>
-        <h2 className="font-display text-xl font-semibold text-slate-900 dark:text-slate-100 text-balance">
-          Bereit für deine erste Lernkarten-Struktur
-        </h2>
-        <p className="mt-2 text-sm text-slate-600 dark:text-slate-400 max-w-lg leading-relaxed">
-          Gib links eine Bezeichnung (z. B. <strong className="text-slate-900 dark:text-slate-200">Glucose</strong>, <strong className="text-slate-900 dark:text-slate-200">L-Alanin</strong> oder <strong className="text-slate-900 dark:text-slate-200">Acetylsalicylsäure</strong>) ein und wähle die gewünschten Projektionen. Jede passende Struktur wird einzeln verifiziert und vor dem Export zur Bestätigung angezeigt.
-        </p>
       </section>
     );
   }
@@ -323,14 +327,20 @@ export const StructureStage: React.FC<StructureStageProps> = ({
               )}
               <span aria-hidden="true">·</span>
               <span>
-                {currentCard.compound.cid > 0
-                  ? `PubChem CID ${currentCard.compound.cid}`
-                  : 'Sekundärquelle (ohne PubChem-CID)'}
+                {currentCard.compound.sourceDatabase} {currentCard.compound.sourceId}
               </span>
-              <span aria-hidden="true">·</span>
-              <span>{currentCard.compound.molecularFormula}</span>
-              <span aria-hidden="true">·</span>
-              <span>{currentCard.compound.molecularWeight}</span>
+              {currentCard.compound.molecularFormula && (
+                <>
+                  <span aria-hidden="true">·</span>
+                  <span>{currentCard.compound.molecularFormula}</span>
+                </>
+              )}
+              {currentCard.compound.molecularWeight && (
+                <>
+                  <span aria-hidden="true">·</span>
+                  <span>{currentCard.compound.molecularWeight}</span>
+                </>
+              )}
               {currentCard.compound.validation.secondarySourceChecked && (
                 <>
                   <span aria-hidden="true">·</span>
@@ -344,13 +354,13 @@ export const StructureStage: React.FC<StructureStageProps> = ({
 
           <div className="flex items-center gap-2 shrink-0">
             <a
-              href={currentCard.compound.pubchemUrl}
+              href={currentCard.compound.sourceUrl}
               target="_blank"
               rel="noopener noreferrer"
-              onClick={(e) => handleOpenPubChem(e, currentCard.compound.pubchemUrl)}
+              onClick={(e) => handleOpenSource(e, currentCard.compound.sourceUrl)}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors whitespace-nowrap"
             >
-              <span>PubChem-Eintrag</span>
+              <span>Eintrag in {currentCard.compound.sourceDatabase}</span>
               <ExternalLink className="w-3.5 h-3.5" />
             </a>
             <button

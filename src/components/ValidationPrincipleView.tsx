@@ -9,7 +9,7 @@ export const ValidationPrincipleView: React.FC = () => {
           Validierungslogik & Anfängerfreundliche Ausrichtung
         </h1>
         <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed max-w-3xl">
-          Jede erzeugte Strukturformel durchläuft eine dreistufige deterministische Prüfung. Es werden niemals chemische Strukturen frei erfunden oder ohne Datenbank-Nachweis gerendert.
+          Jede Kleinmolekül-Strukturformel durchläuft eine dreistufige deterministische Prüfung. Komplexe Glykan-Diagramme werden aus verknüpften oder selbst eingegebenen WURCS-Sequenzen gerendert; PandaMol erfindet keine Struktur frei.
         </p>
       </div>
 
@@ -20,7 +20,7 @@ export const ValidationPrincipleView: React.FC = () => {
             <h2>01. Autoritative Datenbank-Abfrage</h2>
           </div>
           <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
-            Deutsche Substanznamen und Spezifikationen (z. B. Anomer, D/L-Reihe, offenkettige vs. zyklische Form) werden gegen die <strong className="text-slate-900 dark:text-slate-200">PubChem PUG REST</strong> Datenbank aufgelöst und bei Verfügbarkeit mit dem <strong className="text-slate-900 dark:text-slate-200">NCI/CADD Chemical Identifier Resolver</strong> über den InChIKey gegengeprüft.
+            Biochemische Namen und stereochemische Spezifikationen werden bevorzugt über <strong className="text-slate-900 dark:text-slate-200">ChEBI</strong> aufgelöst; <strong className="text-slate-900 dark:text-slate-200">PubChem PUG REST</strong> bleibt der Fallback. Bei Verfügbarkeit prüft der <strong className="text-slate-900 dark:text-slate-200">NCI/CADD Chemical Identifier Resolver</strong> zusätzlich den InChIKey.
           </p>
         </article>
 
@@ -51,6 +51,16 @@ export const ValidationPrincipleView: React.FC = () => {
           </div>
           <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
             Alle L-Aminosäuren werden einheitlich mit Aminogruppe oben, Carboxylgruppe rechts und Rest nach links ausgerichtet. Haworth-Ringe tragen den Ringsauerstoff oben rechts und C1 rechts; Sesselkonformationen orientieren die C5-CH₂OH-Gruppe stets äquatorial.
+          </p>
+        </article>
+
+        <article className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 space-y-2.5 transition-colors">
+          <div className="flex items-center gap-2 text-slate-900 dark:text-slate-100 font-display font-semibold text-base">
+            <Database className="w-5 h-5 shrink-0 text-blue-700 dark:text-blue-400" />
+            <h2>05. Registrierte Glykane</h2>
+          </div>
+          <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+            ChEBI-Einträge mit WURCS-Sequenz und GlyTouCan-IDs liefern SNFG-Diagramme. Für registrierte Glykane wird zusätzlich eine chemische Skelettformel erzeugt, wenn GlyGen eine SMILES-Struktur mit exakt derselben WURCS-Sequenz bereitstellt. Eigene WURCS-Sequenzen werden als SNFG gerendert; ohne verifizierte SMILES-Konvertierung wird keine chemische Formel erfunden.
           </p>
         </article>
       </div>

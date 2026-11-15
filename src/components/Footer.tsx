@@ -1,5 +1,6 @@
 import React from 'react';
 import tauriConfig from '../../src-tauri/tauri.conf.json';
+import pandaIcon from '../../src-tauri/icons/128x128.png';
 import { KofiDonateButton } from './KofiDonateButton.tsx';
 
 export const Footer: React.FC = () => {
@@ -7,6 +8,12 @@ export const Footer: React.FC = () => {
     <footer className="bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 mt-auto transition-colors">
       <div className="max-w-[1440px] mx-auto px-6 py-4 flex flex-wrap items-center justify-between gap-4">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-slate-600 dark:text-slate-400">
+          <img
+            src={pandaIcon}
+            alt=""
+            aria-hidden="true"
+            className="h-7 w-7 shrink-0 rounded-md object-contain"
+          />
           <span className="font-display font-semibold text-slate-900 dark:text-slate-100">
             PandaMol
           </span>

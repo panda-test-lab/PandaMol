@@ -2539,7 +2539,7 @@ dependencies = [
 
 [[package]]
 name = "pandamol"
-version = "1.0.2"
+version = "1.0.5"
 dependencies = [
  "serde",
  "serde_json",

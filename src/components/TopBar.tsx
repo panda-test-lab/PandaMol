@@ -1,6 +1,7 @@
 import React from 'react';
 import { Moon, Sun } from 'lucide-react';
 import type { ThemeMode } from '../App.tsx';
+import pandaIcon from '../../src-tauri/icons/128x128.png';
 
 export type ActiveTab = 'generator' | 'history' | 'validation';
 
@@ -32,9 +33,15 @@ export const TopBar: React.FC<TopBarProps> = ({
             e.preventDefault();
             onSelectTab('generator');
           }}
-          className="font-display text-xl font-bold tracking-tight text-slate-900 dark:text-slate-100 whitespace-nowrap shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 rounded"
+          className="flex items-center gap-2.5 font-display text-xl font-bold tracking-tight text-slate-900 dark:text-slate-100 whitespace-nowrap shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 rounded"
         >
-          PandaMol
+          <img
+            src={pandaIcon}
+            alt=""
+            aria-hidden="true"
+            className="h-8 w-8 shrink-0 rounded-md object-contain"
+          />
+          <span>PandaMol</span>
         </a>
 
         <nav className="flex items-center gap-6 overflow-x-auto">

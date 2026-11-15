@@ -22,14 +22,33 @@ zu erfinden.
 
 - Chemische Namen und zusätzliche Angaben wie **α/β**, **D-/L-Form**,
   **offenkettig/zyklisch**, **(R)/(S)** oder **Zwitterion bei pH 7** verarbeiten.
-- Strukturen über PubChem auflösen und die Ergebnisse lokal mit OpenChemLib
-  validieren; je nach Projektion werden auch stereochemische Informationen
-  geprüft. Der NCI/CADD Resolver kann zusätzlich zur Gegenprüfung herangezogen
-  werden.
+- Biochemische Stoffe bevorzugt über **ChEBI** auflösen – darunter
+  Monosaccharide, Disaccharide, Aminosäuren, Nukleinbasen, Nukleotide,
+  Nukleinsäuren sowie Fette und Fettsäuren, sofern ein passender
+  Strukturdatensatz vorliegt. PubChem bleibt der Fallback; OpenChemLib prüft
+  die Summenformel lokal, und NCI/CADD kann zusätzlich gegenprüfen.
 - **Skelettformeln**, **Fischer-**, **Haworth-Projektionen** und – bei passenden
-  Sechsringen – **Sesselkonformationen** anzeigen.
+  Sechsringen – **Sesselkonformationen** anzeigen. Für komplexe Zucker gibt es
+  außerdem **SNFG-Glykan-Diagramme** aus ChEBI-, GlyTouCan- oder eigenen
+  WURCS-Sequenzen. Gängige lineare Di- und Oligosaccharide mit bis zu sechs
+  Ringen lassen sich zusätzlich als verknüpfte Haworth-Ringe darstellen,
+  einschließlich 1→6-Verknüpfungen. Nicht festgelegte Anomere werden als
+  Wellenbindungen gekennzeichnet; dafür wird eine passende, zur WURCS-Sequenz
+  abgeglichene SMILES-Struktur benötigt.
+- Häufige Disaccharide wie Saccharose, Lactose und Maltose als endliche
+  Moleküle darstellen. Cellulose, Stärke, Amylose, Amylopektin, Glykogen und
+  Chitin werden ausdrücklich als repräsentative Oligosaccharid-Ausschnitte
+  angezeigt, nicht als vollständige Polymere.
 - Lernfreundliche Optionen wie CIP-Kennzeichnung (R/S), C-Nummerierung,
-  farbige Heteroatome und einheitliche Ausrichtung anbieten.
+  farbige Heteroatome, einheitliche Ausrichtung sowie das Ausblenden von
+  Nicht-Atom-Angaben wie `abs`, `and` und `or` anbieten.
+- Funktionelle Seitenbindungen in Fischer-Projektionen auch schräg zeichnen.
+  Für Haworth-Projektionen greift RDKit.js auf eine verifizierte offene
+  Datenbankform zurück, wenn die gewünschte Ringform nicht abrufbar ist. Die
+  theoretisch gebildeten Ringformen werden als nicht vollständig
+  datenbankverifiziert markiert und mit einem Hinweis zu Häufigkeit und
+  Stabilität versehen. Das gilt auch für Aldosen, Ketosen, Desoxyzucker und
+  Aminozucker.
 - Ergebnisse bestätigen, verwerfen, im Verlauf wieder öffnen und als **SVG,
   PNG oder JPEG** exportieren.
 - Mit Schnellbeispielen wie Glucose, L-Alanin, Aspirin und Coffein den ersten
@@ -42,18 +61,31 @@ PandaMol ist ein **Lernwerkzeug**, kein Ersatz für Lehrbücher, Fachliteratur,
 Lehrende oder eine unabhängige fachliche Prüfung. Es ist kein
 Molekülsimulator und berechnet weder Reaktionen noch Synthesewege,
 Wirkstoffwirkung oder Toxizität. Die App verspricht auch nicht, jeden Namen,
-jede Spezifikation oder jede Projektion darstellen zu können.
+jede Spezifikation oder jede Projektion darstellen zu können. Besonders
+komplexe Glykane sind am zuverlässigsten über ihre GlyTouCan-ID oder
+WURCS-Sequenz auffindbar; eine Namenssuche kann nicht jede registrierte
+Variante eindeutig zuordnen. Polysaccharide haben variable Kettenlängen und
+teils Verzweigungen. Die gezeigten endlichen Fragmente legen keine vollständige
+Polymerstruktur fest.
 
 Strukturangaben werden nicht frei von einer KI gezeichnet: Die App löst Namen
 über Datenquellen auf und verwirft Ergebnisse, die ihre Prüfungen nicht
-bestehen. Für eine zusätzliche Namensauflösung kann der Web-/Serverbetrieb
+bestehen. OpenChemLib validiert die gelieferten Strukturen lokal; RDKit.js
+prüft mögliche Ringbildungen und erzeugt bei Bedarf die beiden Anomere aus
+einer offenen Zuckerform. Für eine zusätzliche Namensauflösung kann der Web-/Serverbetrieb
 optional Gemini verwenden, wenn `GEMINI_API_KEY` konfiguriert ist. Auch dann
 stammt die dargestellte Struktur aus einer Datenbank und wird lokal geprüft.
 
 ## So verwendest du die App
 
 1. Öffne den **Struktur-Generator** und gib einen Stoffnamen ein, zum Beispiel
-   `Glucose`, `L-Alanin` oder `Aspirin`.
+   `Glucose`, `L-Alanin`, `Adenin`, `Lactose` oder `Aspirin`. Für ein
+   registriertes komplexes Glykan kannst du seine GlyTouCan-ID eingeben, etwa
+   `G00051MO`. Eigene Sequenzen lassen sich als `WURCS=2.0/...` einfügen.
+   Wähle **Glykan-Diagramm (SNFG)**; bei einer registrierten ID sind zusätzlich
+   eine Skelettformel und – für lineare Zuckerketten – eine Haworth-Projektion
+   möglich, sofern GlyGen eine zur WURCS-Sequenz passende SMILES-Struktur
+   bereitstellt.
 2. Ergänze bei Bedarf Details, etwa `beta-D-Pyranose`,
    `offenkettig, D-Form`, `(S)-Enantiomer` oder `Zwitterion bei pH 7`.
 3. Wähle eine oder mehrere Darstellungsformen und optional die Anzeigeoptionen.
@@ -164,9 +196,17 @@ npm run tauri:build
 
 ## Netzwerk und Protokolle
 
-Für die chemische Auflösung fragt PandaMol PubChem PUG REST und bei Bedarf den
-NCI/CADD Resolver über HTTPS ab. Der lokale Express-Server bindet
-standardmäßig nur an `127.0.0.1`. Serverereignisse werden ohne eingegebene
-Suchbegriffe nach `logs/pandamol.log` geschrieben. Mit `PANDAMOL_LOG_DIR` kann
-ein anderes Logverzeichnis festgelegt werden. Öffentliche Bereitstellungen
-sollten TLS über einen Reverse Proxy terminieren.
+Für die chemische Auflösung fragt PandaMol zuerst die öffentliche ChEBI-API
+und verwendet PubChem PUG REST als Fallback. Für Glykan-Diagramme werden WURCS-Sequenzen aus ChEBI oder GlyTouCan mit dem
+GlyCosmos-WURCS2Image-Dienst gerendert. GlyTouCan-IDs können zusätzlich über
+GlyGen eine SMILES-Struktur liefern; die App verwendet sie nur, wenn deren
+WURCS-Sequenz exakt zur registrierten GlyTouCan-Sequenz passt. Diese verifizierte
+Struktur kann auch für Haworth-Projektionen gängiger, linear verknüpfter Di-
+und Oligosaccharide mit bis zu sechs Ringen verwendet werden, einschließlich
+1→6-Verknüpfungen. Nicht festgelegte Anomere werden als Wellenbindungen
+gekennzeichnet; verzweigte Glykane bleiben der SNFG-Darstellung vorbehalten.
+Diese Funktionen benötigen eine Internetverbindung. Der lokale Express-Server
+bindet standardmäßig nur an `127.0.0.1`. Serverereignisse werden ohne
+eingegebene Suchbegriffe nach `logs/pandamol.log` geschrieben. Mit
+`PANDAMOL_LOG_DIR` kann ein anderes Logverzeichnis festgelegt werden.
+Öffentliche Bereitstellungen sollten TLS über einen Reverse Proxy terminieren.

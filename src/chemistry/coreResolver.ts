@@ -16,8 +16,19 @@ export interface CandidateSpec {
   preferZwitterion?: boolean;
   /** True when entry comes from our curated pharmaceutical/biochemical register */
   isCurated?: boolean;
+  /** Search fallback that should not create a rejection when it is unavailable */
+  isOptionalFallback?: boolean;
+  /** Explains that a finite oligosaccharide stands in for a variable-length polymer */
+  representativeFragmentNote?: string;
   /** Set when structure is chemically valid/possible but occurs only with minimal equilibrium probability */
   unlikelyReason?: string;
+  sugarCyclizationTargets?: Array<{
+    searchName: string;
+    germanName: string;
+    anomer: 'alpha' | 'beta';
+    ringSize: 5 | 6;
+    unlikelyReason?: string;
+  }>;
 }
 
 export interface ResolutionResult {
@@ -32,7 +43,13 @@ export interface ResolutionResult {
 }
 
 export interface ResolverDiagnostic {
-  provider: 'PubChem PUG REST' | 'NCI/CADD Cactus';
+  provider:
+    | 'ChEBI API'
+    | 'PubChem PUG REST'
+    | 'NCI/CADD Cactus'
+    | 'GlyTouCan API'
+    | 'GlyGen API'
+    | 'GlyCosmos WURCS2Image API';
   operation: 'lookup' | 'secondary-verification' | 'structure-fallback';
   failure: 'network' | 'upstream' | 'invalid-response';
   statusCode?: number;
@@ -71,6 +88,12 @@ interface PubChemProperty {
   InChIKey: string;
   IUPACName?: string;
   Title?: string;
+  sourceDatabase?: 'ChEBI' | 'PubChem';
+  sourceId?: string;
+  sourceUrl?: string;
+  chebiStars?: number;
+  glytoucanAccession?: string;
+  wurcs?: string;
 }
 
 const AMINO_ACIDS: Record<string, { en: string; de: string; chiral: boolean }> = {
@@ -96,6 +119,185 @@ const AMINO_ACIDS: Record<string, { en: string; de: string; chiral: boolean }> =
   tryptophan: { en: 'tryptophan', de: 'Tryptophan', chiral: true },
   tyrosin: { en: 'tyrosine', de: 'Tyrosin', chiral: true },
   valin: { en: 'valine', de: 'Valin', chiral: true },
+};
+
+const OLIGOSACCHARIDE_ALIASES: Record<string, CandidateSpec> = {
+  sucrose: {
+    searchName: 'sucrose',
+    germanName: 'Saccharose',
+    subtitle: 'Disaccharid · α(1→2)β-glycosidische Bindung',
+  },
+  saccharose: {
+    searchName: 'sucrose',
+    germanName: 'Saccharose',
+    subtitle: 'Disaccharid · α(1→2)β-glycosidische Bindung',
+  },
+  lactose: {
+    searchName: 'beta-lactose',
+    germanName: 'Lactose',
+    subtitle: 'Disaccharid · β(1→4)-glycosidische Bindung',
+  },
+  laktose: {
+    searchName: 'beta-lactose',
+    germanName: 'Lactose',
+    subtitle: 'Disaccharid · β(1→4)-glycosidische Bindung',
+  },
+  milchzucker: {
+    searchName: 'beta-lactose',
+    germanName: 'Lactose',
+    subtitle: 'Disaccharid · β(1→4)-glycosidische Bindung',
+  },
+  maltose: {
+    searchName: 'alpha-maltose',
+    germanName: 'Maltose',
+    subtitle: 'Disaccharid · α(1→4)-glycosidische Bindung',
+  },
+  malzzucker: {
+    searchName: 'alpha-maltose',
+    germanName: 'Maltose',
+    subtitle: 'Disaccharid · α(1→4)-glycosidische Bindung',
+  },
+  cellobiose: {
+    searchName: 'beta-cellobiose',
+    germanName: 'Cellobiose',
+    subtitle: 'Disaccharid · β(1→4)-glycosidische Bindung',
+  },
+  trehalose: {
+    searchName: 'alpha,alpha-trehalose',
+    germanName: 'Trehalose',
+    subtitle: 'Disaccharid · α,α(1↔1)-glycosidische Bindung',
+  },
+  isomaltose: {
+    searchName: 'isomaltose',
+    germanName: 'Isomaltose',
+    subtitle: 'Disaccharid · α(1→6)-glycosidische Bindung',
+  },
+  melibiose: {
+    searchName: 'melibiose',
+    germanName: 'Melibiose',
+    subtitle: 'Disaccharid · α(1→6)-glycosidische Bindung',
+  },
+  gentiobiose: {
+    searchName: 'gentiobiose',
+    germanName: 'Gentiobiose',
+    subtitle: 'Disaccharid · β(1→6)-glycosidische Bindung',
+  },
+  raffinose: {
+    searchName: 'raffinose',
+    germanName: 'Raffinose',
+    subtitle: 'Trisaccharid · Galactose-Glucose-Fructose',
+  },
+  kestose: {
+    searchName: '1-kestose',
+    germanName: '1-Kestose',
+    subtitle: 'Trisaccharid · Fructooligosaccharid',
+  },
+  lactulose: {
+    searchName: 'lactulose',
+    germanName: 'Lactulose',
+    subtitle: 'Disaccharid · Galactose-Fructose',
+  },
+  isomaltulose: {
+    searchName: 'isomaltulose',
+    germanName: 'Isomaltulose',
+    subtitle: 'Disaccharid · α(1→6)-glycosidische Bindung',
+  },
+  nigerose: {
+    searchName: 'nigerose',
+    germanName: 'Nigerose',
+    subtitle: 'Disaccharid · α(1→3)-glycosidische Bindung',
+  },
+  sophorose: {
+    searchName: 'sophorose',
+    germanName: 'Sophorose',
+    subtitle: 'Disaccharid · β(1→2)-glycosidische Bindung',
+  },
+  kojibiose: {
+    searchName: 'kojibiose',
+    germanName: 'Kojibiose',
+    subtitle: 'Disaccharid · α(1→2)-glycosidische Bindung',
+  },
+};
+
+const POLYSACCHARIDE_FRAGMENTS: Record<string, CandidateSpec> = {
+  cellulose: {
+    searchName: 'cellotriose',
+    germanName: 'Cellulose',
+    subtitle: 'Repräsentativer β(1→4)-Glucose-Oligosaccharid-Ausschnitt',
+    representativeFragmentNote:
+      'Dargestellt ist Cellotriose als endlicher, datenbankverifizierter Ausschnitt der Cellulose. Die Polymerlänge und weitere Kettenabschnitte sind nicht festgelegt.',
+  },
+  amylose: {
+    searchName: 'alpha-maltotriose',
+    germanName: 'Amylose',
+    subtitle: 'Repräsentativer α(1→4)-Glucose-Oligosaccharid-Ausschnitt',
+    representativeFragmentNote:
+      'Dargestellt ist α-Maltotriose als endlicher Ausschnitt der Amylose. Die Polymerlänge ist nicht festgelegt.',
+  },
+  staerke: {
+    searchName: 'alpha-maltotriose',
+    germanName: 'Stärke',
+    subtitle: 'Repräsentativer α(1→4)-Glucose-Oligosaccharid-Ausschnitt',
+    representativeFragmentNote:
+      'Dargestellt ist α-Maltotriose als endlicher linearer Ausschnitt der Stärke. Amylopektin-Verzweigungen und die variable Polymerlänge sind nicht dargestellt.',
+  },
+  starch: {
+    searchName: 'alpha-maltotriose',
+    germanName: 'Stärke',
+    subtitle: 'Repräsentativer α(1→4)-Glucose-Oligosaccharid-Ausschnitt',
+    representativeFragmentNote:
+      'Dargestellt ist α-Maltotriose als endlicher linearer Ausschnitt der Stärke. Amylopektin-Verzweigungen und die variable Polymerlänge sind nicht dargestellt.',
+  },
+  amylopectin: {
+    searchName: 'alpha-maltotriose',
+    germanName: 'Amylopektin',
+    subtitle: 'Repräsentativer α(1→4)-Glucose-Oligosaccharid-Ausschnitt',
+    representativeFragmentNote:
+      'Dargestellt ist α-Maltotriose als endlicher linearer Ausschnitt des Amylopektins. Verzweigungen und die variable Polymerlänge sind nicht dargestellt.',
+  },
+  amylopektin: {
+    searchName: 'alpha-maltotriose',
+    germanName: 'Amylopektin',
+    subtitle: 'Repräsentativer α(1→4)-Glucose-Oligosaccharid-Ausschnitt',
+    representativeFragmentNote:
+      'Dargestellt ist α-Maltotriose als endlicher linearer Ausschnitt des Amylopektins. Verzweigungen und die variable Polymerlänge sind nicht dargestellt.',
+  },
+  glykogen: {
+    searchName: 'alpha-maltotriose',
+    germanName: 'Glykogen',
+    subtitle: 'Repräsentativer α(1→4)-Glucose-Oligosaccharid-Ausschnitt',
+    representativeFragmentNote:
+      'Dargestellt ist α-Maltotriose als endlicher linearer Ausschnitt des Glykogens. α(1→6)-Verzweigungen und die variable Polymerlänge sind nicht dargestellt.',
+  },
+  glycogen: {
+    searchName: 'alpha-maltotriose',
+    germanName: 'Glykogen',
+    subtitle: 'Repräsentativer α(1→4)-Glucose-Oligosaccharid-Ausschnitt',
+    representativeFragmentNote:
+      'Dargestellt ist α-Maltotriose als endlicher linearer Ausschnitt des Glykogens. α(1→6)-Verzweigungen und die variable Polymerlänge sind nicht dargestellt.',
+  },
+  chitin: {
+    searchName:
+      'beta-D-GlcpNAc-(1->4)-beta-D-GlcpNAc-(1->4)-beta-D-GlcpNAc',
+    germanName: 'Chitin',
+    subtitle: 'Repräsentativer β(1→4)-N-Acetylglucosamin-Oligosaccharid-Ausschnitt',
+    representativeFragmentNote:
+      'Dargestellt ist ein datenbankverifiziertes N-Acetylchitotriose-Fragment. Die Polymerlänge ist nicht festgelegt.',
+  },
+  dextran: {
+    searchName: 'isomaltotriose',
+    germanName: 'Dextran',
+    subtitle: 'Repräsentativer α(1→6)-Glucose-Oligosaccharid-Ausschnitt',
+    representativeFragmentNote:
+      'Dargestellt ist Isomaltotriose als endlicher linearer Ausschnitt des Dextrans. Verzweigungen und die variable Polymerlänge sind nicht dargestellt.',
+  },
+  inulin: {
+    searchName: '1-kestose',
+    germanName: 'Inulin',
+    subtitle: 'Repräsentativer β(2→1)-Fructooligosaccharid-Ausschnitt',
+    representativeFragmentNote:
+      'Dargestellt ist 1-Kestose als endlicher Ausschnitt des Inulins. Die Polymerlänge ist nicht festgelegt.',
+  },
 };
 
 interface SugarConfig {
@@ -266,7 +468,7 @@ const GERMAN_PHARMA_ALIASES: Record<string, { en: string; de: string }> = {
   milchzucker: { en: 'beta-lactose', de: 'Lactose (Milchzucker)' },
   maltose: { en: 'alpha-maltose', de: 'Maltose' },
   malzzucker: { en: 'alpha-maltose', de: 'Maltose' },
-  cellobiose: { en: 'beta-D-cellobiose', de: 'Cellobiose' },
+  cellobiose: { en: 'beta-cellobiose', de: 'Cellobiose' },
   trehalose: { en: 'alpha,alpha-trehalose', de: 'Trehalose' },
   aspirin: { en: 'aspirin', de: 'Acetylsalicylsäure (Aspirin)' },
   acetylsalicylsaeure: { en: 'aspirin', de: 'Acetylsalicylsäure' },
@@ -437,7 +639,7 @@ function buildDeterministicCandidates(
       });
       return {
         candidates,
-        interpretedNote: `${aa.de} erkannt (achiral). Validierung über PubChem & OpenChemLib.`,
+        interpretedNote: `${aa.de} erkannt (achiral). Validierung über ChEBI/PubChem & OpenChemLib.`,
       };
     }
 
@@ -451,6 +653,22 @@ function buildDeterministicCandidates(
     return {
       candidates,
       interpretedNote: `${dl}-${aa.de} (${stereoDL ? 'explizite D/L-Angabe' : 'Standard: biogene L-Form'}) ausgewählt.`,
+    };
+  }
+
+  const oligosaccharideAlias = OLIGOSACCHARIDE_ALIASES[qParsed.core];
+  if (oligosaccharideAlias) {
+    return {
+      candidates: [oligosaccharideAlias],
+      interpretedNote: `${oligosaccharideAlias.germanName} als datenbankverifiziertes Oligosaccharid aufgelöst.`,
+    };
+  }
+
+  const polymerFragment = POLYSACCHARIDE_FRAGMENTS[qParsed.core];
+  if (polymerFragment) {
+    return {
+      candidates: [polymerFragment],
+      interpretedNote: `${polymerFragment.germanName} wird als repräsentativer endlicher Oligosaccharid-Ausschnitt dargestellt.`,
     };
   }
 
@@ -480,6 +698,7 @@ function buildDeterministicCandidates(
     const wantsFischer = projections.includes('fischer');
     const wantsCyclic = projections.includes('haworth') || projections.includes('sessel');
     const wantsSkelett = projections.includes('skelett');
+    const wantsGlycan = projections.includes('glycan');
 
     const isRareAldohexoseFuranose =
       ring === 'furanose' &&
@@ -487,26 +706,36 @@ function buildDeterministicCandidates(
 
     const isRareLEnantiomer = dl === 'L' && sugarKey !== 'arabinose';
 
-    if (wantsFischer || openChain) {
+    let openChainCandidate: CandidateSpec | undefined;
+    if (wantsFischer || openChain || wantsCyclic) {
       const openName = dl === 'L' && sugar.openChainL ? sugar.openChainL : sugar.openChainD;
-      candidates.push({
+      openChainCandidate = {
         searchName: openName,
         germanName: `${dl}-${sugar.de} (offenkettig)`,
         subtitle: `Offenkettige Form (${dl}-Reihe) für Fischer-Projektion`,
-        forProjections: openChain ? undefined : ['fischer', ...(wantsCyclic ? [] : (['skelett'] as ProjectionType[]))],
+        forProjections: openChain
+          ? undefined
+          : [
+              ...(wantsFischer ? (['fischer'] as ProjectionType[]) : []),
+              ...(wantsCyclic ? [] : (wantsSkelett ? (['skelett'] as ProjectionType[]) : [])),
+              ...(wantsGlycan ? (['glycan'] as ProjectionType[]) : []),
+            ],
         isCurated: true,
+        isOptionalFallback: wantsCyclic && !openChain,
         unlikelyReason: isRareLEnantiomer
           ? `Seltene ${dl}-Konfiguration: Natürliche Vertreter dieser Monosaccharid-Reihe kommen biochemisch fast ausschließlich als D-Enantiomere vor.`
           : undefined,
-      });
+      };
+      candidates.push(openChainCandidate);
     }
 
-    if (!openChain && (wantsCyclic || wantsSkelett)) {
+    if (!openChain && (wantsCyclic || wantsSkelett || wantsGlycan)) {
       const targetRing = ring || sugar.defaultRing;
       const cyclicProjs: ProjectionType[] = [];
       if (projections.includes('haworth')) cyclicProjs.push('haworth');
       if (projections.includes('sessel')) cyclicProjs.push('sessel');
       if (wantsSkelett) cyclicProjs.push('skelett');
+      if (wantsGlycan) cyclicProjs.push('glycan');
 
       const getCyclicName = (an: 'alpha' | 'beta') => {
         if (dl === 'D') {
@@ -534,6 +763,7 @@ function buildDeterministicCandidates(
       }
 
       const anomersToTry: Array<'alpha' | 'beta'> = anomer ? [anomer] : ['alpha', 'beta'];
+      const cyclizationTargets: NonNullable<CandidateSpec['sugarCyclizationTargets']> = [];
       for (const an of anomersToTry) {
         const name = getCyclicName(an);
         if (name) {
@@ -546,7 +776,17 @@ function buildDeterministicCandidates(
             isCurated: true,
             unlikelyReason,
           });
+          cyclizationTargets.push({
+            searchName: name,
+            germanName: `${an === 'alpha' ? 'α' : 'β'}-${dl}-${formatRingDe(sugar.de, targetRing)}`,
+            anomer: an,
+            ringSize: targetRing === 'pyranose' ? 6 : 5,
+            unlikelyReason,
+          });
         }
+      }
+      if (wantsCyclic && !openChain && openChainCandidate) {
+        openChainCandidate.sugarCyclizationTargets = cyclizationTargets;
       }
     }
 
@@ -630,6 +870,209 @@ function buildFallbackEnglishName(query: string, specifications: string): string
     .replace(/in$/i, 'ine')
     .replace(/α/g, 'alpha')
     .replace(/β/g, 'beta');
+}
+
+interface ChebiSearchRecord {
+  _id?: string | number;
+  _source?: {
+    chebi_accession?: string;
+    ascii_name?: string;
+    name?: string;
+    formula?: string;
+    mass?: number;
+    monoisotopicmass?: number;
+    smiles?: string;
+    inchikey?: string;
+    stars?: number;
+  };
+}
+
+function normalizeChebiName(name: string): string {
+  return name
+    .replace(/<[^>]*>/g, '')
+    .replace(/&alpha;/gi, 'alpha')
+    .replace(/&beta;/gi, 'beta')
+    .replace(/α/g, 'alpha')
+    .replace(/β/g, 'beta')
+    .toLowerCase()
+    .replace(/pyranose|furanose/g, 'se')
+    .replace(/[^a-z0-9]/g, '');
+}
+
+async function fetchChebiGlycanReferences(
+  chebiId: string,
+  onDiagnostic?: ResolverDiagnosticHandler
+): Promise<{ accession?: string; wurcs?: string }> {
+  const numericId = chebiId.match(/^CHEBI:(\d+)$/i)?.[1];
+  if (!numericId) return {};
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 7000);
+  try {
+    const response = await fetch(
+      `https://www.ebi.ac.uk/chebi/backend/api/public/compound/${numericId}/`,
+      { signal: controller.signal, redirect: 'error' }
+    );
+    if (!response.ok) {
+      if (response.status === 429 || response.status >= 500) {
+        await onDiagnostic?.({
+          provider: 'ChEBI API',
+          operation: 'lookup',
+          failure: 'upstream',
+          statusCode: response.status,
+        });
+      }
+      return {};
+    }
+
+    const details = (await response.json()) as {
+      database_accessions?: Record<string, unknown>;
+      default_structure?: { wurcs?: string };
+    };
+    const references = Object.values(details.database_accessions || {}).flatMap((group) =>
+      Array.isArray(group) ? group : []
+    ) as Array<{ accession_number?: string; source_name?: string }>;
+    const accession = references.find(
+      (reference) =>
+        reference.source_name?.toLowerCase() === 'glytoucan' &&
+        /^G\d{5}[A-Z]{2}$/i.test(reference.accession_number || '')
+    )?.accession_number;
+    const wurcs = details.default_structure?.wurcs;
+    return {
+      accession: accession?.toUpperCase(),
+      wurcs:
+        wurcs &&
+        wurcs.length <= 4000 &&
+        /^WURCS=2\.0\/\d+,\d+,\d+\/\S+$/.test(wurcs)
+          ? wurcs
+          : undefined,
+    };
+  } catch {
+    await onDiagnostic?.({
+      provider: 'ChEBI API',
+      operation: 'lookup',
+      failure: 'network',
+    });
+    return {};
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function fetchChebiCompound(
+  name: string,
+  includeGlyTouCanReference: boolean,
+  onDiagnostic?: ResolverDiagnosticHandler
+): Promise<PubChemProperty | null> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 7000);
+  let response: Response;
+  try {
+    const url = new URL('https://www.ebi.ac.uk/chebi/backend/api/public/es_search/');
+    url.searchParams.set('term', name);
+    url.searchParams.set('page', '1');
+    url.searchParams.set('size', '20');
+    response = await fetch(url, { signal: controller.signal, redirect: 'error' });
+  } catch {
+    await onDiagnostic?.({
+      provider: 'ChEBI API',
+      operation: 'lookup',
+      failure: 'network',
+    });
+    clearTimeout(timeout);
+    return null;
+  }
+
+  try {
+    if (!response.ok) {
+      if (response.status === 429 || response.status >= 500) {
+        await onDiagnostic?.({
+          provider: 'ChEBI API',
+          operation: 'lookup',
+          failure: 'upstream',
+          statusCode: response.status,
+        });
+      }
+      return null;
+    }
+
+    let data: { results?: ChebiSearchRecord[] };
+    try {
+      data = (await response.json()) as { results?: ChebiSearchRecord[] };
+    } catch {
+      await onDiagnostic?.({
+        provider: 'ChEBI API',
+        operation: 'lookup',
+        failure: 'invalid-response',
+      });
+      return null;
+    }
+
+    if (!Array.isArray(data.results)) {
+      await onDiagnostic?.({
+        provider: 'ChEBI API',
+        operation: 'lookup',
+        failure: 'invalid-response',
+      });
+      return null;
+    }
+
+    const normalizedName = normalizeChebiName(name);
+    const matches = data.results
+      .filter((record) => {
+        const source = record._source;
+        const chebiId = source?.chebi_accession;
+        const sourceName = source?.ascii_name || source?.name || '';
+        return (
+          /^CHEBI:\d+$/i.test(chebiId || '') &&
+          normalizeChebiName(sourceName) === normalizedName &&
+          Boolean(source?.formula && source.smiles && source.inchikey) &&
+          !source?.smiles?.includes('*')
+        );
+      })
+      .sort((a, b) => (b._source?.stars || 0) - (a._source?.stars || 0));
+
+    const best = matches[0]?._source;
+    if (!best?.chebi_accession || !best.ascii_name || !best.formula || !best.smiles || !best.inchikey) {
+      return null;
+    }
+
+    const chebiId = best.chebi_accession.toUpperCase();
+    const glycanReferences = includeGlyTouCanReference
+      ? await fetchChebiGlycanReferences(chebiId, onDiagnostic)
+      : {};
+    return {
+      CID: 0,
+      MolecularFormula: best.formula,
+      MolecularWeight: String(best.mass || best.monoisotopicmass || ''),
+      IsomericSMILES: best.smiles,
+      InChIKey: best.inchikey,
+      IUPACName: best.ascii_name,
+      Title: best.ascii_name,
+      sourceDatabase: 'ChEBI',
+      sourceId: chebiId,
+      sourceUrl: `https://www.ebi.ac.uk/chebi/searchId.do?chebiId=${encodeURIComponent(chebiId)}`,
+      chebiStars: best.stars,
+      glytoucanAccession: glycanReferences.accession,
+      wurcs: glycanReferences.wurcs,
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function hasOpenChemLibFormulaMatch(prop: PubChemProperty): boolean {
+  const smiles =
+    prop.IsomericSMILES ||
+    prop.SMILES ||
+    prop.CanonicalSMILES ||
+    prop.ConnectivitySMILES;
+  if (!smiles) return false;
+  try {
+    return OCL.Molecule.fromSmiles(smiles).getMolecularFormula().formula === prop.MolecularFormula;
+  } catch {
+    return false;
+  }
 }
 
 async function fetchPubChemCompound(
@@ -898,14 +1341,32 @@ export async function resolveAndVerifyCore(
         subtitle: specifications.trim() || 'Datenbankabfrage',
       },
     ];
-    interpretedNote = `Direkte PubChem-Validierung für "${fallbackName}".`;
+    interpretedNote = `Direkte Datenbanksuche für "${fallbackName}".`;
   }
 
   const verifiedResults: ResolutionResult['candidates'] = [];
   const seenKey = new Set<string>();
 
   for (const spec of specs) {
-    let prop = await fetchPubChemCompound(spec.searchName, reportDiagnostic);
+    const includeGlyTouCanReference = projections.includes('glycan');
+    let prop = await fetchChebiCompound(
+      spec.searchName,
+      includeGlyTouCanReference,
+      reportDiagnostic
+    );
+    if (!prop && spec.searchName !== query.trim()) {
+      prop = await fetchChebiCompound(
+        query.trim(),
+        includeGlyTouCanReference,
+        reportDiagnostic
+      );
+    }
+    if (prop?.sourceDatabase === 'ChEBI' && !hasOpenChemLibFormulaMatch(prop)) {
+      prop = null;
+    }
+    if (!prop) {
+      prop = await fetchPubChemCompound(spec.searchName, reportDiagnostic);
+    }
     if (!prop && spec.searchName !== query.trim()) {
       prop = await fetchPubChemCompound(query.trim(), reportDiagnostic);
     }
@@ -916,9 +1377,11 @@ export async function resolveAndVerifyCore(
         reportDiagnostic
       );
       if (!cactusFallback) {
-        rejectedReasons.push(
-          `Kein validierter PubChem- oder NCI-Cactus-Eintrag für "${spec.searchName}" gefunden.`
-        );
+        if (!spec.isOptionalFallback) {
+          rejectedReasons.push(
+            `Kein passender ChEBI-, PubChem- oder NCI-Cactus-Eintrag für "${spec.searchName}" gefunden.`
+          );
+        }
         continue;
       }
 
@@ -950,7 +1413,9 @@ export async function resolveAndVerifyCore(
           molecularWeight: `${mf.relativeWeight.toFixed(2)} g/mol`,
           isomericSmiles: cactusFallback.smiles,
           inchiKey: cactusFallback.inchiKey,
-          pubchemUrl: `https://pubchem.ncbi.nlm.nih.gov/#query=${encodeURIComponent(spec.searchName)}`,
+          sourceDatabase: 'NCI/CADD Cactus',
+          sourceId: cactusFallback.inchiKey,
+          sourceUrl: `https://cactus.nci.nih.gov/chemical/structure/${encodeURIComponent(spec.searchName)}`,
           stereocentersCount: cipInfo.count,
           cipSummary: cipInfo.summary,
           validation: {
@@ -960,9 +1425,9 @@ export async function resolveAndVerifyCore(
             stereochemistryMatch: true,
             secondarySourceChecked: true,
             secondarySourceName: 'NCI/CADD Cactus (Fallback)',
-            warningTitle: 'Nicht vollständig gegen PubChem validiert',
+            warningTitle: 'Nicht vollständig datenbankvalidiert',
             warningMessage:
-              'Diese Struktur konnte nicht in PubChem verifiziert werden und stammt aus einer sekundären Auflösung über NCI/CADD Cactus. Bitte prüfe die Formel vor der Übernahme auf Lernkarten.',
+              'Diese Struktur konnte weder in ChEBI noch in PubChem bestätigt werden und stammt aus einer sekundären Auflösung über NCI/CADD Cactus. Bitte prüfe sie vor der Übernahme auf Lernkarten.',
           },
         },
       });
@@ -975,9 +1440,15 @@ export async function resolveAndVerifyCore(
       activeProp.SMILES ||
       activeProp.CanonicalSMILES ||
       activeProp.ConnectivitySMILES;
+    const sourceDatabase = activeProp.sourceDatabase || 'PubChem';
+    const sourceId =
+      activeProp.sourceId ||
+      (activeProp.CID > 0 ? `CID ${activeProp.CID}` : spec.searchName);
+    const sourceRecordLabel =
+      sourceDatabase === 'PubChem' ? `PubChem CID ${activeProp.CID}` : `${sourceId} (${sourceDatabase})`;
 
     if (!smiles) {
-      rejectedReasons.push(`PubChem CID ${activeProp.CID} enthält keine gültige SMILES-Notation.`);
+      rejectedReasons.push(`${sourceRecordLabel} enthält keine gültige SMILES-Notation.`);
       continue;
     }
 
@@ -987,7 +1458,7 @@ export async function resolveAndVerifyCore(
       mol.ensureHelperArrays(OCL.Molecule.cHelperCIP);
     } catch {
       rejectedReasons.push(
-        `Struktur für CID ${activeProp.CID} konnte von OpenChemLib nicht geparst werden.`
+        `Struktur für ${sourceRecordLabel} konnte von OpenChemLib nicht geparst werden.`
       );
       continue;
     }
@@ -998,11 +1469,11 @@ export async function resolveAndVerifyCore(
     }
 
     const oclFormula = mol.getMolecularFormula().formula;
-    const pubchemFormula = activeProp.MolecularFormula;
-    const formulaMatch = oclFormula === pubchemFormula;
+    const sourceFormula = activeProp.MolecularFormula;
+    const formulaMatch = oclFormula === sourceFormula;
     if (!formulaMatch) {
       rejectedReasons.push(
-        `Validierungsfehler bei ${spec.germanName}: Summenformel-Abweichung (PubChem: ${pubchemFormula}, OpenChemLib: ${oclFormula}).`
+        `Validierungsfehler bei ${spec.germanName}: Summenformel-Abweichung (${sourceDatabase}: ${sourceFormula}, OpenChemLib: ${oclFormula}).`
       );
       continue;
     }
@@ -1010,7 +1481,7 @@ export async function resolveAndVerifyCore(
     let finalSmiles = smiles;
     if (spec.preferZwitterion) {
       const zw = convertAminoAcidToZwitterion(mol);
-      if (zw && zw.getMolecularFormula().formula === pubchemFormula) {
+      if (zw && zw.getMolecularFormula().formula === sourceFormula) {
         mol = zw;
         finalSmiles = mol.toIsomericSmiles();
       }
@@ -1022,12 +1493,12 @@ export async function resolveAndVerifyCore(
       (/\b[dl]-/i.test(`${query} ${specifications}`) || /\([rs]\)/i.test(`${query} ${specifications}`))
     ) {
       rejectedReasons.push(
-        `${spec.germanName} (CID ${activeProp.CID}) ist achiral (0 Stereozentren) — eine D/L- oder R/S-Form existiert nicht.`
+        `${spec.germanName} (${sourceRecordLabel}) ist achiral (0 Stereozentren) — eine D/L- oder R/S-Form existiert nicht.`
       );
       continue;
     }
 
-    const dedupId = `${activeProp.CID}:${(spec.forProjections || ['all']).join(',')}:${spec.preferZwitterion ? 'zw' : 'n'}`;
+    const dedupId = `${sourceDatabase}:${sourceId}:${(spec.forProjections || ['all']).join(',')}:${spec.preferZwitterion ? 'zw' : 'n'}`;
     if (seenKey.has(dedupId)) continue;
     seenKey.add(dedupId);
 
@@ -1040,18 +1511,24 @@ export async function resolveAndVerifyCore(
     let status: ValidationStatus = 'verified';
     let warningTitle: string | undefined;
     let warningMessage: string | undefined;
+    const curatedSource =
+      spec.isCurated || (sourceDatabase === 'ChEBI' && activeProp.chebiStars === 3);
 
     if (spec.unlikelyReason) {
       status = 'unlikely_form';
       warningTitle = 'Geringe Bildungswahrscheinlichkeit / seltenes Isomer';
       warningMessage = spec.unlikelyReason;
-    } else if (!spec.isCurated && !secondary.checked) {
+    } else if (!curatedSource && !secondary.checked) {
       status = 'unverified';
       warningTitle = 'Nur einfach verifiziert (Sekundärabgleich ausstehend)';
       warningMessage =
-        'PubChem-Eintrag und Summenformel sind gültig, jedoch konnte kein bestätigender InChIKey-Zweitabgleich über NCI/CADD Cactus erzielt werden. Bitte Darstellung fachlich prüfen.';
+        `${sourceDatabase}-Eintrag und Summenformel sind gültig, jedoch konnte kein bestätigender InChIKey-Zweitabgleich über NCI/CADD Cactus erzielt werden. Bitte Darstellung fachlich prüfen.`;
     }
 
+    const molecularWeight = Number(activeProp.MolecularWeight);
+    const sourceUrl =
+      activeProp.sourceUrl ||
+      `https://pubchem.ncbi.nlm.nih.gov/compound/${activeProp.CID}`;
     verifiedResults.push({
       spec,
       molecule: mol,
@@ -1060,16 +1537,23 @@ export async function resolveAndVerifyCore(
         title: activeProp.Title || spec.searchName,
         germanName: spec.germanName,
         iupacName: activeProp.IUPACName || activeProp.Title || spec.searchName,
-        molecularFormula: pubchemFormula,
-        molecularWeight: `${Number(activeProp.MolecularWeight).toFixed(2)} g/mol`,
+        molecularFormula: sourceFormula,
+        molecularWeight: `${(Number.isFinite(molecularWeight) && molecularWeight > 0
+          ? molecularWeight
+          : mol.getMolecularFormula().relativeWeight
+        ).toFixed(2)} g/mol`,
         isomericSmiles: finalSmiles,
         inchiKey: activeProp.InChIKey,
-        pubchemUrl: `https://pubchem.ncbi.nlm.nih.gov/compound/${activeProp.CID}`,
+        sourceDatabase,
+        sourceId,
+        sourceUrl,
+        glytoucanAccession: activeProp.glytoucanAccession,
+        wurcs: activeProp.wurcs,
         stereocentersCount: cipInfo.count,
         cipSummary: cipInfo.summary,
         validation: {
           status,
-          pubchemVerified: true,
+          pubchemVerified: sourceDatabase === 'PubChem',
           formulaMatch: true,
           stereochemistryMatch: true,
           secondarySourceChecked: secondary.checked,

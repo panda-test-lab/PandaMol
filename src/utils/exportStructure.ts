@@ -48,6 +48,9 @@ function buildExportableSvg(
   const captionH = includeCaption ? 46 : 0;
   const totalW = vw + pad * 2;
   const totalH = vh + pad * 2 + captionH;
+  const formulaCaption = card.compound.molecularFormula
+    ? ` (${escapeXml(card.compound.molecularFormula)})`
+    : '';
 
   const innerMatch = card.svg.match(/<svg[^>]*>([\s\S]*?)<\/svg>/i);
   const inner = innerMatch ? innerMatch[1] : card.svg;
@@ -59,7 +62,7 @@ function buildExportableSvg(
   const captionGroup = includeCaption
     ? `
   <line x1="${pad}" y1="${vh + pad * 1.6}" x2="${totalW - pad}" y2="${vh + pad * 1.6}" stroke="#E2E8F0" stroke-width="1" />
-  <text x="${totalW / 2}" y="${vh + pad * 1.6 + 24}" text-anchor="middle" font-family="'Plus Jakarta Sans', 'DM Sans', system-ui, sans-serif" font-size="14" font-weight="600" fill="#0F172A">${escapeXml(card.title)} · ${escapeXml(card.projectionLabel)} (${escapeXml(card.compound.molecularFormula)})</text>`
+  <text x="${totalW / 2}" y="${vh + pad * 1.6 + 24}" text-anchor="middle" font-family="'Plus Jakarta Sans', 'DM Sans', system-ui, sans-serif" font-size="14" font-weight="600" fill="#0F172A">${escapeXml(card.title)} · ${escapeXml(card.projectionLabel)}${formulaCaption}</text>`
     : '';
 
   return `<?xml version="1.0" encoding="UTF-8"?>

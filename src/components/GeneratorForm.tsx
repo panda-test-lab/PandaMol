@@ -45,6 +45,11 @@ const PROJECTION_ITEMS: Array<{
     label: 'Sesselkonformation',
     hint: '⁴C₁ / ¹C₄ für Sechsring-Zucker',
   },
+  {
+    id: 'glycan',
+    label: 'Glykan-Diagramm (SNFG)',
+    hint: 'Zucker über Namen, GlyTouCan-ID oder eigene WURCS-Sequenz',
+  },
 ];
 
 const QUICK_PRESETS: Array<{
@@ -129,7 +134,7 @@ export const GeneratorForm: React.FC<GeneratorFormProps> = ({
             type="text"
             value={query}
             onChange={(e) => onQueryChange(e.target.value)}
-            placeholder="z. B. Glucose, L-Alanin, Ibuprofen, Atropin"
+            placeholder="z. B. Glucose, Lactose, G00051MO oder WURCS=2.0/..."
             className="w-full px-3.5 py-2.5 text-sm text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600 placeholder:text-slate-400 dark:placeholder:text-slate-500"
             autoComplete="off"
           />
@@ -245,6 +250,18 @@ export const GeneratorForm: React.FC<GeneratorFormProps> = ({
             />
             <span className="text-sm text-slate-700 dark:text-slate-300">
               C-Nummerierung (C1, C2 …) anzeigen
+            </span>
+          </label>
+
+          <label className="flex items-center gap-2.5 py-1 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={options.hideNonAtomAnnotations}
+              onChange={(e) => onUpdateOptions({ hideNonAtomAnnotations: e.target.checked })}
+              className="h-4 w-4 rounded border-slate-300 dark:border-slate-600 text-blue-700 focus:ring-blue-600 cursor-pointer"
+            />
+            <span className="text-sm text-slate-700 dark:text-slate-300">
+              Nicht-Atom-Angaben (abs, AND/OR) ausblenden
             </span>
           </label>
         </fieldset>

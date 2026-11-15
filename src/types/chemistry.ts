@@ -1,10 +1,11 @@
-export type ProjectionType = 'skelett' | 'fischer' | 'haworth' | 'sessel';
+export type ProjectionType = 'skelett' | 'fischer' | 'haworth' | 'sessel' | 'glycan';
 
 export interface DisplayOptions {
   uniformAlignment: boolean;
   showCIP: boolean;
   colorHeteroatoms: boolean;
   showCarbonNumbers: boolean;
+  hideNonAtomAnnotations: boolean;
   zwitterionic?: boolean;
 }
 
@@ -37,7 +38,11 @@ export interface VerifiedCompoundMeta {
   molecularWeight: string;
   isomericSmiles: string;
   inchiKey: string;
-  pubchemUrl: string;
+  sourceDatabase: 'ChEBI' | 'PubChem' | 'NCI/CADD Cactus' | 'GlyTouCan' | 'WURCS';
+  sourceId: string;
+  sourceUrl: string;
+  glytoucanAccession?: string;
+  wurcs?: string;
   stereocentersCount: number;
   cipSummary: string;
   validation: ValidationChecks;
