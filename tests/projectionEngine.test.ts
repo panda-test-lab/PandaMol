@@ -81,6 +81,16 @@ test('abbreviates an amino-acid NH2 side group', () => {
   assert.doesNotMatch(svg, />N<\/text>/);
 });
 
+test('condenses terminal hydrocarbon substituents without abbreviating the main chain', () => {
+  const molecule = OCL.Molecule.fromSmiles('O=C(O)[C@H](C)CC');
+  const result = renderProjection('fischer', molecule, displayOptions);
+  const svg = result.svg ?? '';
+
+  assert.equal(result.eligible, true, result.ineligibleReason);
+  assert.match(svg, />CH3<\/text>/);
+  assert.doesNotMatch(svg, />CH2CH3<\/text>/);
+});
+
 test('optionally removes non-atom annotation labels only', () => {
   const svg =
     '<svg><text>abs</text><text>AND</text><text>or</text><text>O</text></svg>';

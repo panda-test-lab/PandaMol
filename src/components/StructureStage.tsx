@@ -7,6 +7,8 @@ import {
   Download,
   ExternalLink,
   FlaskConical,
+  RotateCcw,
+  RotateCw,
   Trash2,
   ZoomIn,
   ZoomOut,
@@ -50,6 +52,7 @@ export const StructureStage: React.FC<StructureStageProps> = ({
   isDark,
 }) => {
   const [zoom, setZoom] = useState<number>(100);
+  const [rotation, setRotation] = useState<number>(0);
   const [showGrid, setShowGrid] = useState<boolean>(false);
   const [includeCaption, setIncludeCaption] = useState<boolean>(false);
   const [transparentPng, setTransparentPng] = useState<boolean>(false);
@@ -57,6 +60,10 @@ export const StructureStage: React.FC<StructureStageProps> = ({
   const exportTimerRef = useRef<number | null>(null);
 
   const currentCard = structures[activeIndex] || null;
+
+  useEffect(() => {
+    setRotation(0);
+  }, [currentCard?.id]);
   const currentCardId = currentCard?.id;
 
   useEffect(() => {
@@ -414,6 +421,29 @@ export const StructureStage: React.FC<StructureStageProps> = ({
                 <ZoomIn className="w-3.5 h-3.5" />
               </button>
             </div>
+            <div className="flex items-center gap-1 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg p-0.5">
+              <button
+                type="button"
+                onClick={() => setRotation((angle) => (angle + 270) % 360)}
+                aria-label="Zeichnung 90 Grad gegen den Uhrzeigersinn drehen"
+                title="90 Grad gegen den Uhrzeigersinn drehen"
+                className="p-1 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white rounded cursor-pointer"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+              </button>
+              <span className="px-1.5 text-xs font-mono tabular-nums text-slate-700 dark:text-slate-200">
+                {rotation}°
+              </span>
+              <button
+                type="button"
+                onClick={() => setRotation((angle) => (angle + 90) % 360)}
+                aria-label="Zeichnung 90 Grad im Uhrzeigersinn drehen"
+                title="90 Grad im Uhrzeigersinn drehen"
+                className="p-1 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white rounded cursor-pointer"
+              >
+                <RotateCw className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
         </div>
 
@@ -424,14 +454,22 @@ export const StructureStage: React.FC<StructureStageProps> = ({
           }`}
         >
           <div
-            className="transition-transform duration-150 ease-out flex items-center justify-center"
+            className="relative transition-[width,height] duration-150 ease-out"
             style={{
-              width: `${Math.round(520 * (zoom / 100))}px`,
-              maxWidth: '100%',
-              height: `${Math.round(320 * (zoom / 100))}px`,
+              width: `${Math.round((rotation % 180 ? 320 : 520) * (zoom / 100))}px`,
+              height: `${Math.round((rotation % 180 ? 520 : 320) * (zoom / 100))}px`,
             }}
-            dangerouslySetInnerHTML={{ __html: displaySvg }}
-          />
+          >
+            <div
+              className="absolute left-1/2 top-1/2 flex items-center justify-center transition-transform duration-150 ease-out"
+              style={{
+                width: `${Math.round(520 * (zoom / 100))}px`,
+                height: `${Math.round(320 * (zoom / 100))}px`,
+                transform: `translate(-50%, -50%) rotate(${rotation}deg)`,
+              }}
+              dangerouslySetInnerHTML={{ __html: displaySvg }}
+            />
+          </div>
         </div>
 
         {/* Ausrichtungs- & Stereochemie-Details */}

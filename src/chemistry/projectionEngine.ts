@@ -113,7 +113,7 @@ function wavyVerticalBondSvg(
     const side = index % 2 === 1 ? amplitude : -amplitude;
     path += ` Q ${(x + side).toFixed(1)} ${(yStart + step * (index - 0.5)).toFixed(1)} ${x.toFixed(1)} ${(yStart + step * index).toFixed(1)}`;
   }
-  return `<path d="${path}" fill="none" stroke="${COLOR_INK}" stroke-width="2" stroke-linecap="round" />`;
+  return `<path d="${path}" fill="none" stroke="${COLOR_INK}" stroke-width="2.5" stroke-linecap="round" />`;
 }
 
 function alignByPrincipalAxisHorizontal(mol: OCL.Molecule): void {
@@ -187,7 +187,7 @@ function toSkeletalSvg(mol: OCL.Molecule, options: DisplayOptions): string {
     autoCrop: true,
     autoCropMargin: 28,
     factorTextSize: 1.15,
-    strokeWidth: 2,
+    strokeWidth: 2.6,
     fontWeight: '600',
     suppressChiralText: true,
     suppressCIPParity: !options.showCIP,
@@ -511,7 +511,7 @@ function renderFischerProjection(
   const textEls: string[] = [];
   const renderedAtoms = new Set(chainSet);
   const bounds = { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity };
-  const stepY = 88;
+  const stepY = 72;
   const cx = 0;
   const topY = 52;
 
@@ -555,7 +555,7 @@ function renderFischerProjection(
     const uy = dy / length;
     const px = -uy;
     const py = ux;
-    const offsets = order >= 3 ? [-3, 0, 3] : order === 2 ? [-2.5, 2.5] : [0];
+    const offsets = order >= 3 ? [-3.3, 0, 3.3] : order === 2 ? [-3.3, 3.3] : [0];
     for (const offset of offsets) {
       const x1 = start.x + ux * startTrim + px * offset;
       const y1 = start.y + uy * startTrim + py * offset;
@@ -564,9 +564,49 @@ function renderFischerProjection(
       includeBounds(x1, y1, 2);
       includeBounds(x2, y2, 2);
       bondEls.push(
-        `<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" stroke="${COLOR_INK}" stroke-width="2" stroke-linecap="round" />`
+        `<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" stroke="${COLOR_INK}" stroke-width="2.5" stroke-linecap="round" />`
       );
     }
+  };
+
+  const formatHydrocarbonGroup = (
+    atomIdx: number,
+    parentIdx: number
+  ): { label: string; atoms: number[] } | null => {
+    const parents = new Map<number, number>([[atomIdx, parentIdx]]);
+    const children = new Map<number, number[]>();
+    const atoms = [atomIdx];
+    for (let cursor = 0; cursor < atoms.length; cursor++) {
+      const current = atoms[cursor];
+      const currentChildren: number[] = [];
+      for (let j = 0; j < mol.getConnAtoms(current); j++) {
+        const neighbor = mol.getConnAtom(current, j);
+        if (neighbor === parents.get(current)) continue;
+        if (
+          chainSet.has(neighbor) ||
+          mol.getAtomicNo(neighbor) !== 6 ||
+          mol.getBondOrder(mol.getConnBond(current, j)) !== 1 ||
+          parents.has(neighbor)
+        ) {
+          return null;
+        }
+        parents.set(neighbor, current);
+        currentChildren.push(neighbor);
+        atoms.push(neighbor);
+      }
+      children.set(current, currentChildren);
+    }
+
+    const format = (current: number): string => {
+      const attached = children.get(current) || [];
+      const hydrogenCount = mol.getImplicitHydrogens(current);
+      const carbon = `C${hydrogenCount ? `H${hydrogenCount > 1 ? hydrogenCount : ''}` : ''}`;
+      if (attached.length === 0) return carbon;
+      if (attached.length === 1) return carbon + format(attached[0]);
+      return `${carbon}(${attached.map(format).join('')})`;
+    };
+
+    return { label: format(atomIdx), atoms };
   };
 
   const atomLabel = (atomIdx: number): string => {
@@ -595,8 +635,8 @@ function renderFischerProjection(
     depth = 0
   ): void => {
     const point = {
-      x: parentPoint.x + direction.x * (depth === 0 ? 70 : 48),
-      y: parentPoint.y + direction.y * (depth === 0 ? 70 : 48),
+      x: parentPoint.x + direction.x * (depth === 0 ? 58 : 40),
+      y: parentPoint.y + direction.y * (depth === 0 ? 58 : 40),
     };
     if (group === null) {
       addBond(
@@ -615,6 +655,14 @@ function renderFischerProjection(
       bondOrder(parentIdx, group),
       depth === 0 && direction.y === 0 ? 0 : 10
     );
+    if (mol.getAtomicNo(group) === 6 && bondOrder(parentIdx, group) === 1) {
+      const hydrocarbon = formatHydrocarbonGroup(group, parentIdx);
+      if (hydrocarbon) {
+        hydrocarbon.atoms.forEach((atom) => renderedAtoms.add(atom));
+        addText(point.x, point.y + 5, hydrocarbon.label, 6);
+        return;
+      }
+    }
     renderedAtoms.add(group);
     const atomicNo = mol.getAtomicNo(group);
     const implicitHydrogens = mol.getImplicitHydrogens(group);
@@ -645,7 +693,7 @@ function renderFischerProjection(
     }
 
     const perpendicular = { x: -direction.y, y: direction.x };
-    const spacing = childGroups.length > 1 ? 30 : 0;
+    const spacing = childGroups.length > 1 ? 25 : 0;
     childGroups.forEach((child, index) => {
       const offset = (index - (childGroups.length - 1) / 2) * spacing;
       const childDirection = {
@@ -1411,13 +1459,13 @@ function renderHaworthProjection(
   const c1Pt = pts[1];
 
   const oIn = shrinkStart(oPt, lastPt, 14);
-  els.push(`<line x1="${lastPt[0]}" y1="${lastPt[1]}" x2="${oIn[0].toFixed(1)}" y2="${oIn[1].toFixed(1)}" stroke="${COLOR_INK}" stroke-width="2.2" stroke-linecap="round" />`);
+  els.push(`<line x1="${lastPt[0]}" y1="${lastPt[1]}" x2="${oIn[0].toFixed(1)}" y2="${oIn[1].toFixed(1)}" stroke="${COLOR_INK}" stroke-width="2.6" stroke-linecap="round" />`);
 
   const oOut = shrinkStart(oPt, c1Pt, 14);
-  els.push(`<line x1="${oOut[0].toFixed(1)}" y1="${oOut[1].toFixed(1)}" x2="${c1Pt[0]}" y2="${c1Pt[1]}" stroke="${COLOR_INK}" stroke-width="2.2" stroke-linecap="round" />`);
+  els.push(`<line x1="${oOut[0].toFixed(1)}" y1="${oOut[1].toFixed(1)}" x2="${c1Pt[0]}" y2="${c1Pt[1]}" stroke="${COLOR_INK}" stroke-width="2.6" stroke-linecap="round" />`);
 
   if (solved.ringSize === 6) {
-    els.push(`<line x1="${pts[4][0]}" y1="${pts[4][1]}" x2="${pts[5][0]}" y2="${pts[5][1]}" stroke="${COLOR_INK}" stroke-width="2.2" stroke-linecap="round" />`);
+    els.push(`<line x1="${pts[4][0]}" y1="${pts[4][1]}" x2="${pts[5][0]}" y2="${pts[5][1]}" stroke="${COLOR_INK}" stroke-width="2.6" stroke-linecap="round" />`);
   }
   // C1 -> C2 and C4 -> C3 tapered wedges, C2 -> C3 thickened Haworth front edge
   els.push(`<polygon points="${pts[1][0]},${pts[1][1]-1.1} ${pts[1][0]},${pts[1][1]+1.1} ${pts[2][0]+2},${pts[2][1]+3.2} ${pts[2][0]-2},${pts[2][1]-2.4}" fill="${COLOR_INK}" />`);
@@ -1430,7 +1478,7 @@ function renderHaworthProjection(
   );
 
   // Vertical UP/DOWN substituents at C1..C_last
-  const bondLen = 48;
+  const bondLen = 40;
   for (let pos = 1; pos < solved.ringSize; pos++) {
     const [px, py] = pts[pos];
     const subs = solved.subsByPos.get(pos) || [];
@@ -1444,7 +1492,7 @@ function renderHaworthProjection(
         els.push(wavyVerticalBondSvg(px, py + startOffset, yEnd));
       } else {
         els.push(
-          `<line x1="${px}" y1="${py + startOffset}" x2="${px}" y2="${yEnd}" stroke="${COLOR_INK}" stroke-width="2" stroke-linecap="round" />`
+          `<line x1="${px}" y1="${py + startOffset}" x2="${px}" y2="${yEnd}" stroke="${COLOR_INK}" stroke-width="2.5" stroke-linecap="round" />`
         );
       }
 
@@ -1712,7 +1760,7 @@ function renderLinkedHaworthProjection(
     };
   }
 
-  const bondLen = 48 * scale;
+  const bondLen = 40 * scale;
   const relativeBridgeEnd = (attachment: Attachment, flipped: boolean) => {
     const [x, y] = relativePointsByRing.get(attachment.ringIndex)![
       attachment.ringPos
@@ -1797,7 +1845,7 @@ function renderLinkedHaworthProjection(
   const drawLine = (
     first: [number, number],
     second: [number, number],
-    widthPx = 2
+    widthPx = 2.5
   ) => {
     els.push(
       `<line x1="${first[0].toFixed(1)}" y1="${first[1].toFixed(1)}" x2="${second[0].toFixed(1)}" y2="${second[1].toFixed(1)}" stroke="${COLOR_INK}" stroke-width="${widthPx}" stroke-linecap="round" />`
@@ -1808,7 +1856,7 @@ function renderLinkedHaworthProjection(
     second: [number, number]
   ) => {
     els.push(
-      `<line class="glycosidic-link" x1="${first[0].toFixed(1)}" y1="${first[1].toFixed(1)}" x2="${second[0].toFixed(1)}" y2="${second[1].toFixed(1)}" stroke="${COLOR_INK}" stroke-width="2" stroke-linecap="round" />`
+      `<line class="glycosidic-link" x1="${first[0].toFixed(1)}" y1="${first[1].toFixed(1)}" x2="${second[0].toFixed(1)}" y2="${second[1].toFixed(1)}" stroke="${COLOR_INK}" stroke-width="2.5" stroke-linecap="round" />`
     );
   };
 
@@ -1838,7 +1886,7 @@ function renderLinkedHaworthProjection(
       `<text x="${oPt[0].toFixed(1)}" y="${(oPt[1] + 6 * scale).toFixed(1)}" text-anchor="middle" font-size="${18 * scale}" font-weight="700" fill="${atomColor(8, options.colorHeteroatoms)}">O</text>`
     );
 
-    const bondLen = 48 * scale;
+    const bondLen = 40 * scale;
     for (let ringPos = 1; ringPos < solved.ringSize; ringPos++) {
       const [px, py] = pts[ringPos];
       const substituents = solved.subsByPos.get(ringPos) || [];
@@ -1903,7 +1951,7 @@ function renderLinkedHaworthProjection(
         endY +
           (attachment.linkerAtomIdx === undefined
             ? 0
-            : (isUp ? -24 : 28) * scale),
+            : (isUp ? -20 : 24) * scale),
       ] as [number, number];
     };
     const firstEnd = getBridgeEnd(first, firstPoint);
@@ -1998,13 +2046,13 @@ function renderChairProjection(
   // Ring bonds
   const oIn = shrinkStart(oPt, pts[5], 13);
   const oOut = shrinkStart(oPt, pts[1], 13);
-  els.push(`<line x1="${pts[5][0]}" y1="${pts[5][1]}" x2="${oIn[0].toFixed(1)}" y2="${oIn[1].toFixed(1)}" stroke="${COLOR_INK}" stroke-width="2.1" stroke-linecap="round" />`);
-  els.push(`<line x1="${oOut[0].toFixed(1)}" y1="${oOut[1].toFixed(1)}" x2="${pts[1][0]}" y2="${pts[1][1]}" stroke="${COLOR_INK}" stroke-width="2.1" stroke-linecap="round" />`);
-  els.push(`<line x1="${pts[4][0]}" y1="${pts[4][1]}" x2="${pts[5][0]}" y2="${pts[5][1]}" stroke="${COLOR_INK}" stroke-width="2.1" stroke-linecap="round" />`);
-  els.push(`<line x1="${pts[3][0]}" y1="${pts[3][1]}" x2="${pts[4][0]}" y2="${pts[4][1]}" stroke="${COLOR_INK}" stroke-width="2.1" stroke-linecap="round" />`);
+  els.push(`<line x1="${pts[5][0]}" y1="${pts[5][1]}" x2="${oIn[0].toFixed(1)}" y2="${oIn[1].toFixed(1)}" stroke="${COLOR_INK}" stroke-width="2.6" stroke-linecap="round" />`);
+  els.push(`<line x1="${oOut[0].toFixed(1)}" y1="${oOut[1].toFixed(1)}" x2="${pts[1][0]}" y2="${pts[1][1]}" stroke="${COLOR_INK}" stroke-width="2.6" stroke-linecap="round" />`);
+  els.push(`<line x1="${pts[4][0]}" y1="${pts[4][1]}" x2="${pts[5][0]}" y2="${pts[5][1]}" stroke="${COLOR_INK}" stroke-width="2.6" stroke-linecap="round" />`);
+  els.push(`<line x1="${pts[3][0]}" y1="${pts[3][1]}" x2="${pts[4][0]}" y2="${pts[4][1]}" stroke="${COLOR_INK}" stroke-width="2.6" stroke-linecap="round" />`);
   // Front emphasized bonds C1-C2 and C2-C3
-  els.push(`<line x1="${pts[1][0]}" y1="${pts[1][1]}" x2="${pts[2][0]}" y2="${pts[2][1]}" stroke="${COLOR_INK}" stroke-width="2.6" stroke-linecap="round" />`);
-  els.push(`<line x1="${pts[2][0]}" y1="${pts[2][1]}" x2="${pts[3][0]}" y2="${pts[3][1]}" stroke="${COLOR_INK}" stroke-width="2.8" stroke-linecap="round" />`);
+  els.push(`<line x1="${pts[1][0]}" y1="${pts[1][1]}" x2="${pts[2][0]}" y2="${pts[2][1]}" stroke="${COLOR_INK}" stroke-width="3" stroke-linecap="round" />`);
+  els.push(`<line x1="${pts[2][0]}" y1="${pts[2][1]}" x2="${pts[3][0]}" y2="${pts[3][1]}" stroke="${COLOR_INK}" stroke-width="3.2" stroke-linecap="round" />`);
 
   // O_ring label
   els.push(
@@ -2013,11 +2061,11 @@ function renderChairProjection(
 
   // Equatorial vectors (parallel to next-but-one ring bond!)
   const eqVectors4C1: Record<number, [number, number]> = {
-    1: [48, -14], // C1 eq UP-right
-    2: [36, 30], // C2 eq DOWN-right
-    3: [-44, 24], // C3 eq DOWN-left
-    4: [-48, -14], // C4 eq UP-left
-    5: [-38, -28], // C5 eq UP-left
+    1: [42, -12], // C1 eq UP-right
+    2: [32, 26], // C2 eq DOWN-right
+    3: [-38, 20], // C3 eq DOWN-left
+    4: [-42, -12], // C4 eq UP-left
+    5: [-33, -24], // C5 eq UP-left
   };
 
   for (let pos = 1; pos <= 5; pos++) {
@@ -2033,7 +2081,7 @@ function renderChairProjection(
       let vy: number;
       if (isAxial) {
         vx = 0;
-        vy = subUp ? -46 : 46;
+        vy = subUp ? -40 : 40;
       } else {
         const [ex, ey] = eqVectors4C1[pos];
         vx = ex;
@@ -2043,7 +2091,7 @@ function renderChairProjection(
       const tx = px + vx;
       const ty = py + vy;
       els.push(
-        `<line x1="${px}" y1="${py}" x2="${tx}" y2="${ty}" stroke="${COLOR_INK}" stroke-width="2" stroke-linecap="round" />`
+        `<line x1="${px}" y1="${py}" x2="${tx}" y2="${ty}" stroke="${COLOR_INK}" stroke-width="2.5" stroke-linecap="round" />`
       );
 
       const anchor = vx > 10 ? 'start' : vx < -10 ? 'end' : 'middle';
