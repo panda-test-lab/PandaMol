@@ -183,11 +183,25 @@ export function hideNonAtomAnnotations(svg: string): string {
 }
 
 function toSkeletalSvg(mol: OCL.Molecule, options: DisplayOptions): string {
+  let centerX = 0;
+  let centerY = 0;
+  for (let i = 0; i < mol.getAllAtoms(); i++) {
+    centerX += mol.getAtomX(i);
+    centerY += mol.getAtomY(i);
+  }
+  if (mol.getAllAtoms() > 0) {
+    centerX /= mol.getAllAtoms();
+    centerY /= mol.getAllAtoms();
+    for (let i = 0; i < mol.getAllAtoms(); i++) {
+      mol.setAtomX(i, centerX + (mol.getAtomX(i) - centerX) * 0.88);
+      mol.setAtomY(i, centerY + (mol.getAtomY(i) - centerY) * 0.88);
+    }
+  }
   const rawSvg = mol.toSVG(640, 400, 'mol-skeletal', {
     autoCrop: true,
     autoCropMargin: 28,
     factorTextSize: 1.15,
-    strokeWidth: 2.6,
+    strokeWidth: 3.2,
     fontWeight: '600',
     suppressChiralText: true,
     suppressCIPParity: !options.showCIP,
@@ -2124,6 +2138,44 @@ function renderChairProjection(
     titleSuffix: confLabel,
     alignmentNotes: `${confLabel}: sterisch anspruchsvolle C5-Gruppe äquatorial ausgerichtet · Ringsauerstoff hinten rechts.`,
   };
+};
+
+function normalizeBondPresentation(svg: string): string {
+  let normalized = svg
+    .replace(/stroke-width="([0-9.]+)"/g, (_match, width: string) =>
+      `stroke-width="${(Number(width) * 1.35).toFixed(2)}"`
+    )
+    .replace(/stroke-width:\s*([0-9.]+)/g, (_match, width: string) =>
+      `stroke-width:${(Number(width) * 1.35).toFixed(2)}`
+    );
+
+  if (!/<svg[^>]*id="mol-skeletal"/i.test(normalized)) {
+    const viewBoxMatch = normalized.match(/viewBox="([^"]+)"/i);
+    if (viewBoxMatch) {
+      const values = viewBoxMatch[1].trim().split(/[\s,]+/).map(Number);
+      if (values.length === 4 && values.every((value) => Number.isFinite(value))) {
+        const centerX = values[0] + values[2] / 2;
+        const centerY = values[1] + values[3] / 2;
+        normalized = normalized.replace(/<line\b([^>]*)>/gi, (_line, attributes: string) =>
+          `<line${attributes
+            .replace(/x1="([^"]+)"/g, (_match: string, value: string) =>
+              `x1="${(centerX + (Number(value) - centerX) * 0.90).toFixed(1)}"`
+            )
+            .replace(/y1="([^"]+)"/g, (_match: string, value: string) =>
+              `y1="${(centerY + (Number(value) - centerY) * 0.90).toFixed(1)}"`
+            )
+            .replace(/x2="([^"]+)"/g, (_match: string, value: string) =>
+              `x2="${(centerX + (Number(value) - centerX) * 0.90).toFixed(1)}"`
+            )
+            .replace(/y2="([^"]+)"/g, (_match: string, value: string) =>
+              `y2="${(centerY + (Number(value) - centerY) * 0.90).toFixed(1)}"`
+            )}>`
+        );
+      }
+    }
+  }
+
+  return normalized;
 }
 
 export function renderProjection(
@@ -2156,6 +2208,9 @@ export function renderProjection(
 
   if (result.svg && options.hideNonAtomAnnotations) {
     result.svg = hideNonAtomAnnotations(result.svg);
+  }
+  if (result.svg) {
+    result.svg = normalizeBondPresentation(result.svg);
   }
   return result;
 }

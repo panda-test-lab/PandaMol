@@ -58,6 +58,7 @@ export const StructureStage: React.FC<StructureStageProps> = ({
   const [transparentPng, setTransparentPng] = useState<boolean>(false);
   const [exportStatus, setExportStatus] = useState<string | null>(null);
   const exportTimerRef = useRef<number | null>(null);
+  const moleculeSvgRef = useRef<HTMLDivElement | null>(null);
 
   const currentCard = structures[activeIndex] || null;
 
@@ -77,6 +78,27 @@ export const StructureStage: React.FC<StructureStageProps> = ({
       }
     };
   }, []);
+
+  useEffect(() => {
+    if (!moleculeSvgRef.current) return;
+    const textElements = moleculeSvgRef.current.querySelectorAll('text');
+    textElements.forEach((textElement) => {
+      const x = Number(textElement.getAttribute('x') ?? '0');
+      const y = Number(textElement.getAttribute('y') ?? '0');
+      const originalTransform =
+        textElement.getAttribute('data-pandamol-original-transform') ??
+        textElement.getAttribute('transform') ??
+        '';
+      textElement.setAttribute(
+        'data-pandamol-original-transform',
+        originalTransform
+      );
+      textElement.setAttribute(
+        'transform',
+        `${originalTransform ? `${originalTransform} ` : ''}translate(${x} ${y}) rotate(${-rotation}) translate(${-x} ${-y})`
+      );
+    });
+  }, [rotation, currentCard?.id, currentCard?.svg, isDark]);
 
   const handleExport = async (format: 'svg' | 'png' | 'jpg') => {
     if (!currentCard || !currentCard.confirmed) return;
@@ -424,6 +446,15 @@ export const StructureStage: React.FC<StructureStageProps> = ({
             <div className="flex items-center gap-1 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg p-0.5">
               <button
                 type="button"
+                onClick={() => setRotation((angle) => (angle + 345) % 360)}
+                aria-label="Zeichnung 15 Grad gegen den Uhrzeigersinn drehen"
+                title="15 Grad gegen den Uhrzeigersinn drehen"
+                className="px-1.5 py-1 text-[10px] font-mono text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white rounded cursor-pointer"
+              >
+                -15°
+              </button>
+              <button
+                type="button"
                 onClick={() => setRotation((angle) => (angle + 270) % 360)}
                 aria-label="Zeichnung 90 Grad gegen den Uhrzeigersinn drehen"
                 title="90 Grad gegen den Uhrzeigersinn drehen"
@@ -443,6 +474,15 @@ export const StructureStage: React.FC<StructureStageProps> = ({
               >
                 <RotateCw className="w-3.5 h-3.5" />
               </button>
+              <button
+                type="button"
+                onClick={() => setRotation((angle) => (angle + 15) % 360)}
+                aria-label="Zeichnung 15 Grad im Uhrzeigersinn drehen"
+                title="15 Grad im Uhrzeigersinn drehen"
+                className="px-1.5 py-1 text-[10px] font-mono text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white rounded cursor-pointer"
+              >
+                +15°
+              </button>
             </div>
           </div>
         </div>
@@ -456,11 +496,18 @@ export const StructureStage: React.FC<StructureStageProps> = ({
           <div
             className="relative transition-[width,height] duration-150 ease-out"
             style={{
-              width: `${Math.round((rotation % 180 ? 320 : 520) * (zoom / 100))}px`,
-              height: `${Math.round((rotation % 180 ? 520 : 320) * (zoom / 100))}px`,
+              width: `${Math.round((
+                Math.abs(Math.cos((rotation * Math.PI) / 180)) * 520 +
+                Math.abs(Math.sin((rotation * Math.PI) / 180)) * 320
+              ) * (zoom / 100))}px`,
+              height: `${Math.round((
+                Math.abs(Math.sin((rotation * Math.PI) / 180)) * 520 +
+                Math.abs(Math.cos((rotation * Math.PI) / 180)) * 320
+              ) * (zoom / 100))}px`,
             }}
           >
             <div
+              ref={moleculeSvgRef}
               className="absolute left-1/2 top-1/2 flex items-center justify-center transition-transform duration-150 ease-out"
               style={{
                 width: `${Math.round(520 * (zoom / 100))}px`,
